@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so.pyc
+
+# Build artifacts (keep .so and .su — required by contest)
+*.o
+*.obj
+
+# Logs and runtime
+*.log
+logs/*.log
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Local checkpoints
+fno_ns/checkpoints/*.pt
+!fno_ns/checkpoints/checkpoint_synth.pt
+
+# Tune cache (keep final table)
+spectral_conv_combo/tune_cache/
+
+# Env
+.env
+*.swp

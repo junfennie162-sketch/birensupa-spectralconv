@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-07-22T13:00:07Z",
+  "current_phase": "submit_gate",
+  "phases": {
+    "skeleton": {
+      "title": "\u4ed3\u5e93\u9aa8\u67b6\u4e0e\u9009\u9898\u5bf9\u9f50",
+      "status": "done",
+      "completed_at": "2026-07-21"
+    },
+    "spectral_accuracy": {
+      "title": "\u5fc5\u9009 SpectralConv \u6b63\u786e\u6027",
+      "status": "done",
+      "completed_at": "2026-07-22",
+      "note": "method1 + extension dual-corner; worst_rel~2e-7"
+    },
+    "spectral_perf": {
+      "title": "\u5fc5\u9009 SpectralConv \u6027\u80fd",
+      "status": "done",
+      "completed_at": "2026-07-22",
+      "note": "64/128/256 tables in results.md"
+    },
+    "fno_forward": {
+      "title": "\u8fdb\u9636 FNO-NS \u524d\u5411\u4e0e\u53ef\u89c6\u5316",
+      "status": "done",
+      "completed_at": "2026-07-22",
+      "note": "4 layers; synthetic data; figure written"
+    },
+    "demo": {
+      "title": "\u6f14\u793a\u4e0e SCP \u5c55\u793a\u6750\u6599",
+      "status": "done",
+      "completed_at": "2026-07-22"
+    },
+    "submit_gate": {
+      "title": "\u63d0\u4ea4\u95e8\u7981",
+      "status": "done",
+      "completed_at": "2026-07-22"
+    }
+  }
+}

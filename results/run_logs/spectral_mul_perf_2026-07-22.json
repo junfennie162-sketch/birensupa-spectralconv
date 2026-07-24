@@ -1,0 +1,5 @@
+{"task":"spectral_mul","mode":"perf","rows":[
+  {"case":"perf_64x64","resolution":"64x64","forward_us":98.073597,"forward_ms":0.098074},
+  {"case":"perf_128x128","resolution":"128x128","forward_us":97.228804,"forward_ms":0.097229},
+  {"case":"perf_256x256","resolution":"256x256","forward_us":96.991997,"forward_ms":0.096992}
+]}
