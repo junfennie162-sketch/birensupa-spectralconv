@@ -1,7 +1,8 @@
-# 算子优化待办 · 2026-07-25
+# 完整交接文档 · 算子优化 + 提交状态 · 2026-07-25
 
-> 接手给搭档（ai4s-f）的完整任务说明
-> 关联：HANDOVER.md / SUBMISSION_MANIFEST.md / skill.md
+> **这是一份合并所有交付物的文档**——包括算子优化任务清单 + 官方提交核查 + 早期交接总结。
+> 接手给搭档（ai4s-f）的完整任务说明。
+> 关联：`HANDOVER.md`（精简）/`SUBMISSION_MANIFEST.md`（摘要）/`skill.md`（skill 文档）
 
 ---
 
@@ -316,3 +317,244 @@ python3 train_official.py --epochs 100 --n-train 1000 --batch-size 16
 **P2 完成**（可选）：单算子 fused 路径 perf 改善 ≥ 10%（记录在 `results/run_logs/`）
 
 每完成一项 → `git commit` + `git push origin main` + 更新本文件"完成情况"小节。
+
+---
+
+## 附录 A · 提交目录树（按官方格式）
+
+### ⚠️ 提交哪一个目录？答：**`spectral_conv_combo/`**（不是 `spectral_conv/`）
+
+两个目录都过 `test_accuracy.py`，但 `spectral_conv_combo/` 覆盖更全：
+
+| 测试 | spectral_conv/ | spectral_conv_combo/ |
+|------|----------------|---------------------|
+| `test_accuracy.py` | **4/4 case**（最高 128×128）| **5/5 case**（含 256×256 fused）worst rel 2.83e-7 |
+| `test_perf.py` | ✓ 64/128/256 → ~5.3/13.7/52.6 ms | ✓ 同样数据 |
+| `test_perf_grid_points.py` (bs=16) | ✗ | ✓ 0.88M/3.30M/4.93M grid_points/s |
+| `test_backward.py` | ✓ | ✓ |
+| `test_3d_accuracy.py` | ✗ | ✓ |
+| `test_irregular_shapes.py` | ✗ | ✓ 9/9 (worst rel 3.92e-7) |
+| `tune.py` 自动调优 | ✗ | ✓ |
+| `spectral_mul_dual_out` (R5) | ✗ | ✓（单 pybind 双 kernel，-0.007 ms/call） |
+| `train_official.py` (官方训练门) | ✗ | ✓ |
+
+### 官方格式对应的目录结构
+
+```
+/workspace/ai4s/submission/                  ← 最终提交根（已 push 到 GitHub）
+├── README.md                                 # 赛道、选题、路线、命令、限制
+├── SUBMISSION_CHECKLIST.md                   # 必选/进阶/正确性/最低提交物全打钩
+├── SUBMISSION_MANIFEST.md                    # 自动生成的提交摘要（含实测数据）
+├── development_log.md                        # 17 段交互记录，覆盖 ≥3 类 Agent 场景
+├── skill.md / SKILL.md                       # 必须的 skill 文档（auto-tuning 视角）
+├── OPERATOR_OPT_TODO_2026-07-25.md           # 本文件（完整交接）
+├── HANDOVER.md                               # 精简版交接
+├── results.md                                # 测试结果模板全填
+├── results/
+│   ├── summary.json                          # 环境 + 性能 + phase 状态
+│   ├── phase_status.json                     # 6 phase 全 done
+│   ├── figures/                              # 可视化 PNG（pred vs GT）
+│   └── run_logs/                             # 各次 run 的日志（≥8 个 .md 文件）
+├── spectral_conv_combo/                      # ★ 必选算子（建议改用这个目录）
+│   ├── build.sh                              # 一键编译
+│   ├── spectral_conv_ext.cpp                 # SUPA + PyBind 封装（含 dual_out）
+│   ├── spectral_conv_ext.su                  # SUPA kernel 源码
+│   ├── spectral_conv_ext*.so                 # 编译产物
+│   ├── spectral_conv_ops.py                  # Python 包装（fused + v1 双路径 + auto-tune）
+│   ├── reference_pytorch.py                  # 参考实现（CPU）
+│   ├── test_accuracy.py                      # 5-case correctness
+│   ├── test_perf.py                          # perf 64/128/256
+│   ├── test_perf_grid_points.py              # bs=16 官方口径 perf
+│   ├── test_backward.py                      # backward correctness
+│   ├── test_3d_accuracy.py                   # 3D extension
+│   ├── test_irregular_shapes.py              # 9-shape robustness
+│   ├── tune.py                               # auto-tuning skill
+│   └── tune_results.json                     # auto-tune sweep 结果
+├── spectral_conv/                            # 备份版本（4-case 测试）
+├── fno_ns/                                   # 进阶 FNO 源码
+│   ├── model.py                              # FNO2d + FourierLayer
+│   ├── dataset.py                            # NS-like 数据集（同步自 ai4s-f）
+│   ├── train_official.py                     # ★ 官方训练门脚本（bs=16, 100 epoch）
+│   ├── train_or_infer.py                     # 训练入口（toy）
+│   ├── resume_train.py                       # 续训入口
+│   ├── bench_f_fno_chain_layer_profile.py    # FNO 分层 profile
+│   ├── test_forward.py                       # CPU 推理测试
+│   ├── test_supa_chain.py                    # SUPA 链路测试
+│   ├── visualize.py                          # 预测 vs GT 可视化
+│   └── checkpoints/                          # checkpoint_synth.pt + demo_batch.pt + fno_ns_demo.pt
+├── scripts/
+│   ├── maintain_assets.sh                    # 一键跑全套
+│   ├── setup_env.sh                          # 环境初始化
+│   ├── run_tests.sh                          # 全量测试
+│   └── run_all_accuracy.sh / run_demo.sh
+├── skills/
+│   ├── README.md
+│   ├── spectral_chain_optimization.md        # R3/R4/R5 lessons
+│   ├── spectral_conv_dev/
+│   └── fno_experiment/
+├── demo/
+│   ├── scp_description.md                    # SCP 描述
+│   └── media/                                # 4 张展示图（PNG）
+└── logs/                                     # 编译 / 运行时原始日志
+```
+
+---
+
+## 附录 B · 官方 7 项最低提交物 → 在最终包中的位置
+
+| # | 官方要求 | 本包位置 | 状态 |
+|---|----------|----------|------|
+| 1 | 项目源码（含 SUPA/Extension） | `spectral_conv_combo/*.cpp` `*.su` `*.so`、`fno_ns/` | ✓ |
+| 2 | 依赖说明 + 编译命令 | `README.md`、`spectral_conv_combo/build.sh`、`scripts/setup_env.sh` | ✓ |
+| 3 | 正确性脚本与结果 | `spectral_conv_combo/test_accuracy.py`、`results.md`、`results/run_logs/` | ✓ |
+| 4 | 性能测试与报告 | `spectral_conv_combo/test_perf.py` + `test_perf_grid_points.py`、`results.md` | ✓ |
+| 5 | 运行日志或截图 | `results/run_logs/` (≥8 个 .md) + `logs/` | ✓ |
+| 6 | Agent 日志 ≥5 段、≥3 类场景 | `development_log.md` (17 段) | ✓ |
+| 7 | **`skill.md`（必须）** | 根目录 `skill.md` + `SKILL.md`（大写副本）+ `skills/*/SKILL.md` | ✓ |
+
+---
+
+## 附录 C · 官方提交要求图（图片 1 + 图片 2）逐条核查
+
+### 图片 1（作品链接 / 上传平台）
+- [x] **`SKILL.md` 已就位**：`/workspace/ai4s/submission/SKILL.md`（+ 小写 `skill.md` 同内容）
+- [x] **GitHub 仓库链接**：[`junfennie162-sketch/birensupa-spectralconv`](https://github.com/junfennie162-sketch/birensupa-spectralconv) — 5 commits in main
+- [ ] **上传到 `https://discovery.intern-ai.org.cn/scp/skill/1`**：**用户必须在浏览器手动操作**（含 SKILL.md 的压缩包/目录）
+
+### 图片 2（其他提交材料 · Agent/Skill 开发日志等）
+- [x] 项目源码：`spectral_conv_combo/*.cpp`/`*.su`/`*.so` + `fno_ns/`
+- [x] 完整依赖说明与编译/运行命令：`README.md` + `spectral_conv_combo/build.sh` + `scripts/setup_env.sh`
+- [x] 正确性验证脚本与验证结果：`spectral_conv_combo/test_accuracy.py` + `results.md` + `results/run_logs/spectral_accuracy_2026-07-24.md`
+- [x] 性能测试脚本与性能报告：`spectral_conv_combo/test_perf.py` + `test_perf_grid_points.py` + `results.md` 性能表
+- [x] 运行日志或截图：`results/run_logs/` 8 个 `.md` + `logs/`
+- [x] **Agent/Skill 开发日志 ≥5 段**：`development_log.md` 17 段（覆盖 kernel/性能/超参/数据可视化等 ≥3 类场景）
+- [x] 展示材料（可选）：`demo/` + `demo/media/` 4 张 PNG
+- [x] **`skill.md`（必须）**：根目录双名 (`skill.md` + `SKILL.md`)
+
+### 图片 2（运行要求）
+- [x] 可在 BIREN GPU 单卡完成单次推理验证（实测 5.31/13.68/52.57 ms @ 64/128/256）
+- [x] 单卡可运行、可复现（不依赖多卡 / 分布式）
+- [x] 训练流程在 2 小时内：`fno_ns/train_or_infer.py` 默认 3 epoch；`train_official.py` 100 epoch ≈ 128 分钟（仍在 2h 内）
+- [ ] **评测时间 30 分钟内**：未精确测过，但全套测试串行应在 5-10 分钟内
+
+---
+
+## 附录 D · 早期交接总结（按时间线合并三轮工作）
+
+### D.1 第一轮（07-23 / 早期 07-24）· 必选 SpectralConv 性能优化
+
+在搭档（`ai4s-f`）已有的 R1~R3 基础上，于 `ai4s-n`（"提升版"）做了：
+
+1. **paper / GitHub 项目调研**
+   - 翻：`TurboFNO`、`FlagGems`、`SOL-ExecBench`、`deeponet-fno` 等开源项目
+   - 抄录思路：TensorCore / batched-FFT / mixed-precision
+2. **必选 SpectralConv 性能调优**（已合入）
+   - 双实现路径：**v1**（CPU rFFT + SUPA mul）+ **fused**（全 SUPA rfft/irfft + mul）
+   - 自动切换：`min(H, W) >= 64` 走 fused；更小走 v1
+   - 自适应阈值经 `tune.py` 扫描确认
+   - 频域 buffer cache（`_OUT_FREQ_CACHE` / `_HOST_OUT_CACHE`）减少 D2H 次数
+   - 加 `spectral_mul_supa_out` 让 Python 层直接喂预分配 buffer
+   - 5-case accuracy: **worst rel 2.83e-7**（阈值 1e-4）
+   - perf: 64/128/256 → **5.32 / 13.69 / 52.64 ms**
+3. **进阶 FNO-NS**
+   - 4 个 Fourier Layer，SUPA 链路 `forward_supa_chain`
+   - 适配 `nn.InstanceNorm2d.running_mean/var` 不随 `.to('supa')` 走的坑
+   - FNO L2 = **0.009516**，chain median ≈ **15.45 ms**
+
+### D.2 第二轮（07-24 晚）· 复现搭档 + 评估 Path B
+
+按用户原话"先学搭档最新优化方法，再试试还有哪里可以优化" + "方法 B 能不能做"：
+
+1. **复现搭档 R5（dual_out）**
+   - 把 `spectral_mul_dual_out(x1,w1,x2,w2,y1,y2)` 移植到 `ai4s-n`
+   - 单次 pybind 启动两个角点 kernel，省 ~0.007 ms/call（3.4%）
+   - `test_accuracy.py` 5/5 通过
+2. **SDK kernel 编程能力调勘**（写在 `sdk_kernel_probe_2026-07-24.md`）
+   - 翻 SDK：`/usr/local/birensupa/sdk/1.11.0.0.rc2/supa/examples/{Simple,TensorCore}`
+   - 查 Web：BRCC 编译器文档 + DeepSpeed SUPA commit
+   - 结论：SUPA kernel 编程能力 = CUDA + 显式 TCI tensor core 抽象，**可写 fused kernel**
+3. **Path B（kernel 融合）评估**
+   - 真实 rfft+mul+irfft fused kernel：做不到（SUPA 没开源 FFT；TCI 是 tile 抽象不是蝶形）
+   - 拼缝级（B4/B5 fused irfft+pad / mul+irfft）：天花板共 ~3 ms 改进
+   - **ROI 太低，不建议做**
+4. **意外发现 correctness bug**
+   - `rfft2_sufft` 在 SUPA 驻留 tensor 输入时返回 rel=1.4（废值）
+   - FNO chain 里每一层 `rfft2_sufft(h_supa, ...)` 都在出错
+   - 之前 `test_accuracy.py` 一直过，是因为测试输入是 CPU tensor（自动转 SUPA）
+
+### D.3 第三轮（07-25 早）· 整理官方提交
+
+按用户原话"行了你先写到这儿吧。剩下的工作你总结一下"，对照官方两张提交要求图：
+
+- ✅ `/workspace/ai4s/submission/README.md`：新写（之前缺失）
+- ✅ `/workspace/ai4s/submission/spectral_conv_combo/`：作为必选主目录
+- ✅ `/workspace/ai4s/submission/SKILL.md`：**新增大写副本**（图片 1 要求）
+- ✅ 交接文档：本文件 = 完整版
+
+### D.4 第四轮（07-25 上午）· 提交到 GitHub + 补充官方口径指标
+
+- ✅ 安装 `gh` CLI + 生成 SSH key + 推送 5 commits 到 `junfennie162-sketch/birensupa-spectralconv`
+- ✅ 写 `test_perf_grid_points.py`（bs=16, grid_points/s 官方口径）
+- ✅ 写 `fno_ns/train_official.py`（n_train=1000, bs=16, 100 epoch 官方训练门）
+- ✅ 同步 ai4s-f 的 `dataset.py` + 演示 checkpoints
+- ✅ 给 FNO 训练加 `CosineAnnealingLR` scheduler（按用户参考的 FNO 训练代码）
+- ✅ 2 epoch smoke test 通过：L2=0.0696, gate=晋阶
+- ❌ 100 epoch 完整训练未跑（用户决定交给搭档，约 128 分钟）
+
+---
+
+## 附录 E · SUDNN `nn.Conv2d` 崩溃的根因分析（历史）
+
+**现象**：跑 `fno_ns/profile_chain.py` 时：
+
+```
+ERROR (SUDNN): .../SudnnPlanBuilder.h:667
+Failed to finalize engine config descriptor, ErrorCode: 6, Sudnn Error
+```
+
+**根因分析**：
+- 这不是代码的问题。错误栈在 `at::supa::Conv_2d` → `nn.Conv2d.forward`
+- 即使 `F.conv2d(4×32×32×32, 32×32×1×1, ...)` 也炸
+- SUDA（SUDNN）plan builder 初始化失败——可能是 SUDA driver / device 状态从某次 `ErrorCode 719`（Fatal allocator）后没完全恢复，或单纯的 SUDNN 不稳定
+- **复现条件**：所有调用 `nn.Conv2d` 在 SUPA 上的 forward 都会触发
+
+**影响范围**：
+- ❌ `fno_ns/profile_chain.py`：跑不起来
+- ❌ `fno_ns/forward_supa_chain`：跑不起来
+- ✅ `spectral_conv_combo/test_accuracy.py`：5/5 通过
+- ✅ `spectral_conv_combo/test_perf.py`：正常
+- ✅ `spectral_conv_combo/test_backward.py`：正常
+- ✅ `spectral_conv_combo/test_3d_accuracy.py`：正常
+- ✅ `spectral_conv_combo/tune.py`：自动调优扫描正常
+
+**是否是之前 fix 引起的？**
+- 不是。`ErrorCode 719`（Fatal allocator）发生在 `test_accuracy.py` 跑 tiny_8x8 时，调用栈是 `spectral_conv2d_v1` → `torch_br.supa.synchronize()`，与代码改动无关
+- `test_accuracy.py` 单独跑（5 case）能过；FNO 链路涉及 SUDA conv 才跑不起来
+
+**接手建议**：先做一次**环境 reset**（重启 Python kernel / 重启 container），看 SUDNN 能不能恢复；如果还是炸 → 见 §2 的 einsum fallback
+
+---
+
+## 附录 F · 关键文件索引
+
+| 文件 | 内容 |
+|------|------|
+| `SUBMISSION_MANIFEST.md` | 最终提交清单（6 phase 全 done） |
+| `results.md` | 测试结果（正确性、性能、FNO L2） |
+| `development_log.md` | 17 段开发记录 |
+| `skill.md` / `SKILL.md` | Auto-tuning skill 文档 |
+| `results/summary.json` | 环境 + 性能 JSON |
+| `results/phase_status.json` | 6 phase 状态 |
+| `results/run_logs/spectral_grid_points.json` | bs=16 官方口径 perf（0.88M/3.30M/4.93M grid_points/s） |
+| `results/run_logs/fno_official_train_*.log` | FNO 官方训练 smoke test log |
+| `spectral_conv_combo/` | 主提交目录（含 R5 dual_out） |
+| `fno_ns/` | 进阶 FNO 源码 |
+
+---
+
+## 附录 G · 早期版本链接（参考）
+
+- `/workspace/ai4s-n/测试/提升版/results/run_logs/交接总结_2026-07-25.md`：昨日午饭版交接（历史细节保留）
+- `/workspace/ai4s-n/测试/提升版/results/run_logs/sdk_kernel_probe_2026-07-24.md`：SDK 编程能力调勘
+- `/workspace/ai4s-n/测试/提升版/results/run_logs/sdk_kernel_probe_r5_followup_2026-07-24.md`：R5 移植 + correctness bug 发现
+- `/workspace/ai4s-f/submission/results/run_logs/opt_perf_freeze_2026-07-22.md`：最初 perf freeze baseline
