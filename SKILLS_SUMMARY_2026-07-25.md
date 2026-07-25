@@ -27,26 +27,47 @@
 
 ---
 
-## 1. 主 Skill · `spectral_conv_fno_ns_biren`
+## 1. 主 Skill · `翻斗花园_FNO_SpectralConv_BirenSUPA`
 
 > 文件：`skill.md` / `SKILL.md`（根目录）
 > 来源：`ai4s-f/skill.md`（早期）→ `ai4s/skill.md`（最终版）
+> 全限定 ID：`fandou-garden/fno-spectral-conv-biren-supa`
+> 团队：翻斗花园（赛道 5 · 模型与算子）
+> 目标硬件：BIREN SUPA GPU（Biren106B）
+> 目标框架：PyTorch + torch_br + 自研 C++/SUPA Extension
+> Skill 版本：v1.0（2026-07-25）
 
-### 1.1 Skill 名称
+### 1.1 Skill 一句话描述
 
-`spectral_conv_fno_ns_biren`
+在 BIREN SUPA GPU 上构建 FNO 核心 2D Spectral Convolution（FFT + 频域复数乘 + iFFT 全链路 SUPA 化），组装 ≥4 层 FNO 完成二维 Navier-Stokes 涡度前向验证，并通过 Auto-Tuning 在不同分辨率下自动选最佳路径与显存策略。
 
-### 1.2 目标
+### 1.2 Skill 适用场景
+
+| 场景 | 描述 |
+|------|------|
+| **必选算子评测** | 提交 BIREN 平台 SpectralConv 单算子（必选题）|
+| **进阶模型评测** | 提交 FNO-2D Navier-Stokes 完整链路（进阶 C）|
+| **Auto-Tuning 集成** | 自动扫描 `path × buffer_max` 选 Pareto-best 配置 |
+| **跨分辨率性能调优** | 64/128/256 不同路径切换策略 |
+| **SUPA 平台 bug 排查** | rfft2_sufft SUPA-input + SUDNN nn.Conv2d crash + 2D FFT ABI |
+
+### 1.3 Skill 不适用场景
+
+- ❌ 非 BIREN 平台（NVIDIA CUDA / AMD ROCm 不适用）
+- ❌ 3D FNO（本 Skill 仅覆盖 2D FNO；3D SpectralConv 仅作算子扩展演示）
+- ❌ 长时间训练（建议训练在 CPU 路径或调小规模）
+
+### 1.4 目标
 
 在壁仞 BIREN GPU 上实现 FNO 核心 2D Spectral Convolution（SUPA），并组装 ≥4 层 FNO 完成二维 Navier-Stokes 涡度前向验证。
 
-### 1.3 输入
+### 1.5 输入
 
 - 张量 `x: [B, C_in, H, W]`（优先 2 的幂次分辨率）
 - 可配置 `modes1/modes2`
 - FNO：多帧涡度输入 `[B, T_in, H, W]`
 
-### 1.4 步骤
+### 1.6 步骤
 
 1. `source brsw_set_env.sh`；`export SUPA_BASE=...`
 2. 方式一（可选）：`my_task_direct` → `make build && make run-accuracy`
@@ -55,13 +76,13 @@
 5. `python3 test_perf.py`（64/128/256）
 6. `cd ../fno_ns && python3 test_forward.py && python3 visualize.py`
 
-### 1.5 输出
+### 1.7 输出
 
 - 正确性 JSON / `results/run_logs/spectral_accuracy_*.md`
-- 性能表 `results/run_logs/spectral_perf_*.md`
+- 性能表 `results/run_logs/spectral_perf_*.md` + `spectral_grid_points.json`
 - FNO 前向日志与 `results/figures/fno_ns_pred_vs_gt.png`
 
-### 1.6 能力边界
+### 1.8 能力边界
 
 - v1：FFT/iFFT 在 CPU；SUPA 负责频域复数乘
 - 勿使用 `torch.fft` 直接跑在 `device=supa` 做正确性
