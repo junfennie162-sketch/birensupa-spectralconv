@@ -27,21 +27,34 @@
 
 ---
 
-## 1. 主 Skill · `翻斗花园_FNO_SpectralConv_BirenSUPA`
+## 1. 主 Skill · `fno-spectral-conv-supa`
 
 > 文件：`skill.md` / `SKILL.md`（根目录）
 > 来源：`ai4s-f/skill.md`（早期）→ `ai4s/skill.md`（最终版）
-> 全限定 ID：`fandou-garden/fno-spectral-conv-biren-supa`
 > 团队：翻斗花园（赛道 5 · 模型与算子）
 > 目标硬件：BIREN SUPA GPU（Biren106B）
 > 目标框架：PyTorch + torch_br + 自研 C++/SUPA Extension
 > Skill 版本：v1.0（2026-07-25）
+> **命名规则**：≤30 字符、仅英文/-_、不以特殊字符开头或结尾（符合官方表单）
 
-### 1.1 Skill 一句话描述
+### 1.1 Skill 描述（≤500 字符，直接复制到官方表单）
+
+```
+Implement FNO 2D Spectral Convolution on BIREN SUPA GPU with FFT +
+complex-domain GEMM + iFFT all on device. Includes 4-layer FNO-2D
+Navier-Stokes forward chain, Auto-Tuning skill that scans
+{path, buffer_max} to pick Pareto-best config per resolution,
+and workaround for SUPA platform bugs (rfft2_sufft SUPA-input
+correctness, SUDNN nn.Conv2d crash). Achieves worst rel 2.83e-7
+at 5.32/13.69/52.64 ms for 64/128/256 and 0.88M/3.30M/4.93M
+grid_points/s at batch 16.
+```
+
+### 1.2 Skill 一句话描述
 
 在 BIREN SUPA GPU 上构建 FNO 核心 2D Spectral Convolution（FFT + 频域复数乘 + iFFT 全链路 SUPA 化），组装 ≥4 层 FNO 完成二维 Navier-Stokes 涡度前向验证，并通过 Auto-Tuning 在不同分辨率下自动选最佳路径与显存策略。
 
-### 1.2 Skill 适用场景
+### 1.3 Skill 适用场景
 
 | 场景 | 描述 |
 |------|------|

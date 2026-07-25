@@ -2,13 +2,25 @@
 
 ## Skill 名称
 
-**`翻斗花园_FNO_SpectralConv_BirenSUPA`**
+**`fno-spectral-conv-supa`**（27 字符 · 仅英文/-· 不以特殊字符开头/结尾 · 符合官方表单规则）
 
-> 全限定 ID：`fandou-garden/fno-spectral-conv-biren-supa`
 > 团队：翻斗花园（赛道 5 · 模型与算子）
 > 目标硬件：BIREN SUPA GPU（Biren106B）
 > 目标框架：PyTorch + torch_br + 自研 C++/SUPA Extension
 > Skill 版本：v1.0（2026-07-25）
+
+### Skill 描述（500 字符以内，直接复制到官方表单）
+
+```
+Implement FNO 2D Spectral Convolution on BIREN SUPA GPU with FFT +
+complex-domain GEMM + iFFT all on device. Includes 4-layer FNO-2D
+Navier-Stokes forward chain, Auto-Tuning skill that scans
+{path, buffer_max} to pick Pareto-best config per resolution,
+and workaround for SUPA platform bugs (rfft2_sufft SUPA-input
+correctness, SUDNN nn.Conv2d crash). Achieves worst rel 2.83e-7
+at 5.32/13.69/52.64 ms for 64/128/256 and 0.88M/3.30M/4.93M
+grid_points/s at batch 16.
+```
 
 ### Skill 一句话描述
 
