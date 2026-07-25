@@ -56,6 +56,7 @@ def evaluate(model, loader):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--epochs", type=int, default=100)
+    p.add_argument("--use-scheduler", action="store_true", default=True, help="use CosineAnnealingLR (default on)")
     p.add_argument("--batch-size", type=int, default=16, help="official = 16")
     p.add_argument("--n-train", type=int, default=1000, help="official = 1000")
     p.add_argument("--n-test", type=int, default=128)
@@ -79,6 +80,11 @@ def main():
 
     model = FNO2d(modes1=16, modes2=16, width=32, n_layers=4, in_channels=10, out_channels=1)
     optim = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1.0e-4)
+    # CosineAnnealing: at epoch=N lr=0; with N=100 lr reaches ~0 only at last epoch (intended).
+    # For short test runs (e.g. epochs=2) this would kill lr early; user can pass --no-scheduler.
+    scheduler = None
+    if args.use_scheduler:
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, T_max=max(args.epochs, 3))
 
     log = ROOT.parent / "results" / "run_logs" / f"fno_official_train_{time.strftime('%Y%m%d_%H%M%S')}.log"
     log.parent.mkdir(parents=True, exist_ok=True)
@@ -106,6 +112,8 @@ def main():
             train_loss_sum += float(loss.item())
             train_count += 1
             step_count += 1
+        if scheduler is not None:
+            scheduler.step()
         avg_train = train_loss_sum / max(train_count, 1)
         test_l2 = evaluate(model, test_loader)
         improved = ""
@@ -113,7 +121,7 @@ def main():
             best_l2 = test_l2
             torch.save({"model": model.state_dict(), "test_l2": test_l2, "step": step_count, "epoch": epoch + 1}, CKPT)
             improved = "  *best*"
-        entry = f"step {step_count:5d} | epoch {epoch+1:3d} | train_l2={avg_train:.6f} | test_l2={test_l2:.6f} | best_l2={best_l2:.6f}{improved}"
+        entry = f"step {step_count:5d} | epoch {epoch+1:3d} | train_l2={avg_train:.6f} | test_l2={test_l2:.6f} | best_l2={best_l2:.6f} | lr={optim.param_groups[0]['lr']:.2e}{improved}"
         print(entry)
         log.write_text(log.read_text() + entry + "\n")
         # 晋阶 (≤500 step)、有效 (≤2000 step)、推荐 (≥6000 step) gate print
