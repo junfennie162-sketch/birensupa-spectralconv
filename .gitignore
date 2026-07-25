@@ -17,9 +17,15 @@ logs/*.log
 .idea/
 .DS_Store
 
-# Local checkpoints
+# Local checkpoints (keep only demo + synth, exclude official_best.pt which is large and regenerable)
 fno_ns/checkpoints/*.pt
 !fno_ns/checkpoints/checkpoint_synth.pt
+!fno_ns/checkpoints/demo_batch.pt
+!fno_ns/checkpoints/fno_ns_demo.pt
+
+# Large NS-like data caches (regenerated on first run by dataset.py)
+fno_ns/data/ns_like_*.pt
+fno_ns/data/*.pt
 
 # Tune cache (keep final table)
 spectral_conv_combo/tune_cache/

@@ -83,6 +83,49 @@ submission/
 
 ---
 
+## 5. 官方指标对照表（基于用户 2026-07-25 10:38 提供的截图）
+
+| 维度 | 官方要求 | 提交版数据 | 状态 |
+|------|---------|-----------|------|
+| **正确性** | 相对 L2 ≤ 阈值（声明 64×64） | SpectralConv 5/5 通过，worst rel **2.83e-7**；FNO L2 = **0.009516** | ✅ |
+| **显存** | 峰值 MB（加档） | 64/128/256 → **41.7 / 137.9 / 522.2 MB** | ✅ |
+| **性能 (主指标)** | `grid_points/s = Σ(H·W·batch)/Σt_warmup`，warmup=10，统计=50，**bs=16** | 当前 `summary.json` 是 `forward_time_ms`，bs=1；**未按官方口径测** | ⚠️ 缺口径 |
+| **FNO 模型搭建** | 4 Fourier Layer 完整，复用必选 SpectralConv | 4 层，复用 `spectral_conv_combo` | ✅ |
+| **精度声明** | 64×64 数据 | 5-case 含 64×64 | ✅ |
+| **可视化** | 预测 vs GT | `results/figures/fno_ns_pred_vs_gt_*.png` ×3 | ✅ |
+| **Agent 开发** | ≥5 段、≥3 类场景 | `development_log.md` 17 段 | ✅ |
+| **skill.md** | 必须 | `SKILL.md` + `skill.md` 双份 | ✅ |
+| **训练门：晋阶** | ≤500 step（≈8 epoch）| 总 step 数 = `epochs × ⌈n_train/bs⌋`；1000/16 = 63 step/epoch | ❓ 取决于 epoch |
+| **训练门：有效** | ≤2000 step（≈30 epoch）| 同上 | ❓ |
+| **训练门：推荐** | ≥6000 step（≈100 epoch）| 同上 | ❓ |
+
+### 已补齐 / 明天一键跑
+
+- `spectral_conv_combo/test_perf_grid_points.py` — 按官方公式 `grid_points/s` 测（bs=16, warmup=10, iters=50），输出到 `results/run_logs/spectral_grid_points.json`
+- `fno_ns/train_official.py` — 按官方 `n_train=1000, bs=16, 100 epoch, 6300 step` 跑完整训练；自动判定晋阶/有效/推荐 gate；保存 best 到 `fno_ns/checkpoints/fno_ns_official_best.pt`
+- `fno_ns/dataset.py` 与 `fno_ns/checkpoints/fno_ns_demo.pt` 已从 `ai4s-f` 同步过来（之前 `submission/` 缺这两个，`resume_train.py` 跑不起来）
+- 注：v2 数据缓存 481 MB **没有**打进 git（按 `.gitignore` 规则本地重新生成）；接收方首次跑 `train_official.py` 会自动调 `load_or_build_ns_like` 生成
+
+### 已测得的官方口径数据（2026-07-25）
+
+**SpectralConv grid_points/s**（`results/run_logs/spectral_grid_points.json`，bs=16, warmup=10, iters=50）：
+
+| 分辨率 | mean_ms | median_ms | grid_points/s |
+|--------|---------|-----------|---------------|
+| 64×64 | 74.17 | 80.45 | **883,577** |
+| 128×128 | 79.54 | 72.44 | **3,295,767** |
+| 256×256 | 212.88 | 210.98 | **4,925,789** |
+
+**FNO 训练 smoke test**（`results/run_logs/fno_official_train_20260725_105006.log`，1 epoch, bs=16, n_train=1000）：
+- steps/epoch = **63**（符合官方 1000/16 ≈ 63）
+- 1 epoch = 77 秒 → **100 epoch 预计 ≈ 128 分钟（≈2.1 小时）**
+- 1 epoch test_l2 = 0.103（best）；gate = **晋阶**（≤500 step）
+- ⚠️ 未跑完整 100 epoch 已停止（用户决定让搭档接手跑）；提交版只标注 smoke test 数据 + 完整脚本
+
+**显存（按官方"峰值 MB"口径，已在 `summary.json`）**：64/128/256 → 41.7/137.9/522.2 MB
+
+---
+
 ## 5. GitHub 推送未完成总结
 
 **状态**：本地 git 仓库已就绪、101 文件、1 commit `4422058`（在 `/workspace/ai4s/submission/.git/`），**未推到 GitHub**。

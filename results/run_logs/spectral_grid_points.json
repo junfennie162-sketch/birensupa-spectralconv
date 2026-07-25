@@ -1,0 +1,35 @@
+[
+  {
+    "resolution": "64x64",
+    "batch_size": 16,
+    "warmup": 10,
+    "iters": 50,
+    "mean_ms": 74.1725,
+    "median_ms": 80.4542,
+    "min_ms": 34.0008,
+    "max_ms": 103.071,
+    "grid_points_per_s": 883577
+  },
+  {
+    "resolution": "128x128",
+    "batch_size": 16,
+    "warmup": 10,
+    "iters": 50,
+    "mean_ms": 79.541,
+    "median_ms": 72.4385,
+    "min_ms": 67.1734,
+    "max_ms": 127.1535,
+    "grid_points_per_s": 3295767
+  },
+  {
+    "resolution": "256x256",
+    "batch_size": 16,
+    "warmup": 10,
+    "iters": 50,
+    "mean_ms": 212.8769,
+    "median_ms": 210.9816,
+    "min_ms": 210.319,
+    "max_ms": 248.2906,
+    "grid_points_per_s": 4925789
+  }
+]

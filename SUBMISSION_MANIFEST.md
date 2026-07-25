@@ -12,9 +12,10 @@
 | phase | status | 主要 asset |
 |---|---|---|
 | skeleton | done | AGENTS.md, README.md, results/, development_log.md |
-| spectral_accuracy | done | `spectral_conv/` (build + 5-case test) — worst rel 2.84e-7 |
-| spectral_perf | done | auto path 64/128/256 = 5.32 / 13.69 / 52.64 ms |
+| spectral_accuracy | done | `spectral_conv/` + `spectral_conv_combo/` (build + 5-case test) — worst rel 2.83e-7 |
+| spectral_perf | done | auto path 64/128/256 = 5.32 / 13.69 / 52.64 ms（bs=1）<br>grid_points/s @ bs=16: 0.88M / 3.30M / 4.93M（`results/run_logs/spectral_grid_points.json`） |
 | fno_forward | done | `fno_ns/` (model + L2 + viz + supa chain) — L2 0.009516 |
+| fno_official_train | done（smoke）| `fno_ns/train_official.py` 1-epoch smoke 通过；steps/epoch=63；100 epoch ≈ 128 min（**待搭档跑完整 100 epoch**） |
 | demo | done | `demo/scp_description.md` + `demo/media/` (4 figures) |
 | submit_gate | done | results.md + summary.json + phase_status.json + development_log.md (17 段) |
 
