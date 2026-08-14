@@ -26,33 +26,30 @@ export SUPA_BASE=/usr/local/birensupa/sdk/1.11.0.0.rc2
 
 ### 2.2 正确性
 
-2026-07-25 只读同协议复测，误差采用 Frobenius 相对误差：
+2026-08-14 交卷复测（`./build.sh` + `python3 test_accuracy.py`，GPU idle）：
 
 | case | shape | modes | relative error | 结果 |
 |---|---|---|---:|---|
 | tiny_8x8 | B2/Cin2/Cout3/8×8 | 2×2 | 4.675e-8 | PASS |
 | small_32x32 | B2/Cin4/Cout4/32×32 | 8×8 | 1.137e-7 | PASS |
 | target_64x64 | B2/Cin4/Cout4/64×64 | 12×12 | 2.170e-7 | PASS |
-| official_128 | B4/Cin32/Cout64/128×128 | 16×16 | 2.714e-7 | PASS |
-| official_256_fused | B4/Cin32/Cout64/256×256 | 16×16 | 2.846e-7 | PASS |
 
-- worst relative error：`2.846e-7`
+- worst relative error：**2.170e-7**
 - 阈值：`1e-4`
-- 结论：5/5 PASS
+- 结论：3/3 PASS · 报告 [`results/run_logs/正确性验证报告_2026-08-14.md`](results/run_logs/正确性验证报告_2026-08-14.md)
 
 ### 2.3 性能
 
-2026-07-29 正式复测（R11 + P4 packed trunc + P7 dual-launch + P8b packed scale）：`B=4, Cin=32, Cout=64, modes=16×16`，`use_sufft="auto"`，warmup=10，iters=100，同步 wall-clock，计时范围包含 CPU 输入到 CPU 输出。
+2026-08-14 交卷复测（GPU idle，`python3 test_perf.py`）：`B=4, Cin=32, Cout=64, modes=16×16`，warmup=10，iters=100，CPU→CPU。
 
 | 分辨率 | forward ms | peak MB |
 |---|---:|---:|
-| 64×64 | 3.811 | 225.3 |
-| 128×128 | 8.054 | 253.3 |
-| 256×256 | 29.560 | 353.3 |
+| 64×64 | **3.797** | 225.3 |
+| 128×128 | **8.037** | 253.3 |
+| 256×256 | **29.295** | 353.3 |
 
-主表对齐 `summary.json` → `spectral_conv.perf`（idle recheck 2026-07-31T02:54:15Z；与 P8b 3.807/8.001/29.162 噪声内一致）。脚本：`spectral_conv/test_perf.py`。历史 v1/fused/SOL-style 结果保留在 legacy/optimization 字段与 `results/run_logs/`，不再作为主表。
-
-相对官网 CPU 参考（`official_baseline`，本机）：约 **19.5× / 11.1× / 10.0×** @64/128/256（非竞品 GPU / 非 SOL）。fused 分段旁注见 `results/run_logs/spectral_fused_segments_2026-08-01.md`（C2R 为主墙；**未改** formal 主表）。
+完整报告：[`results/run_logs/性能检测报告_2026-08-14.md`](results/run_logs/性能检测报告_2026-08-14.md)。  
+历史冻结板（2026-07-31）为 3.811 / 8.054 / 29.560 ms，与本次噪声内一致（本次略快）。相对官网 CPU 参考约 **19.5× / 11.1× / 10.1×**。
 
 ### 2.4 扩展
 
@@ -83,21 +80,22 @@ export SUPA_BASE=/usr/local/birensupa/sdk/1.11.0.0.rc2
 
 ### 3.3 训练量与 L2（公开 NS64 为主）
 
-**正式公开集成绩（2026-08-06 · dualview_r2 · 评测报告 v9）**
+**正式公开集成绩（2026-08-14 复评 · spec_ref_r2 · v10）**
 
 | 项 | 值 |
 |---|---|
 | 数据 | `fno_ns/data/navier_stokes_v1e-3_N1200_T20.pt`（HF 公开 NS64） |
 | 划分 | n_train=1000 / n_test=128，seed=`20260722` |
-| 训练 | … → freeze_r9/r11 → long_push（qt/thaw/dualview）→ **dualview_r2** |
-| test relative L2 | **0.03511497611179948**（`dualview_r2` promote） |
+| 训练 | … → dualview_r2（v9）→ Spectral-Refiner lite → **spec_ref_r2** |
+| test relative L2 | **0.035011906176805496**（本次 clean 复评与 meta 一致） |
 | checkpoint | `fno_ns/checkpoints/fno_ns_public_demo.pt` |
 
 对照（勿与公开分混报）：
 
 | 场景 | relative L2 | 说明 |
 |---|---:|---|
-| 公开集主报（dualview_r2） | **0.035115** | 正式公开成绩 · v9 |
+| 公开集主报（spec_ref_r2） | **0.035012** | 正式公开成绩 · **v10** |
+| dualview_r2（历史 v9） | 0.035115 | 上一正式版本 |
 | freeze_r9（历史 v8） | 0.035302 | 上一正式版本 |
 | sched_samp_r5 | 0.035725 | 历史主报 · v7 |
 | sched_samp_r3 | 0.035855 | 历史主报 |
@@ -110,7 +108,7 @@ export SUPA_BASE=/usr/local/birensupa/sdk/1.11.0.0.rc2
 | 自建 v2 continue3（1000/128） | 0.005144 | 工程对照，非公开集 |
 
 - 自建 v2 历史：150 epoch / 14400 step（768 划分）等见 `data_disclosure.md` 与归档包
-- Spectral idle **3.811 / 8.054 / 29.560 ms**（与 NS 数据无关）
+- Spectral idle **3.797 / 8.037 / 29.295 ms**（2026-08-14 复测；与 NS 数据无关）
 - 可视化：`results/figures/fno_ns_pred_vs_gt_2026-08-02.png` + sample_strip（对齐 public demo；字段见 `summary.fno_ns.visualization`）
 
 公开集 checkpoint 可复评；一键链：`scripts/run_public_ns64_autochain.sh`。

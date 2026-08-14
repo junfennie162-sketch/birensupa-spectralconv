@@ -1,7 +1,7 @@
-# 评委 3 分钟抽查一页包（2026-08-04）
+# 评委 3 分钟抽查一页包（2026-08-04 文件名 · 正文 2026-08-14 对齐）
 
-> **唯一朗读入口**。主报锁定：公开 L2 **0.035115**（`dualview_r2` · v9）；Spectral idle **3.811 / 8.054 / 29.560 ms**。  
-> 精度线已停；**SOL / proxy 仅旁注，禁止得分句**。  
+> **唯一朗读入口**。主报锁定：公开 L2 **0.035012**（`spec_ref_r2` · **v10**）；Spectral idle **3.797 / 8.037 / 29.295 ms**。  
+> SOL / proxy 仅旁注，禁止得分句。  
 > 指针：[`CURRENT.md`](CURRENT.md) · README「评委 3 分钟路径」。
 
 ---
@@ -10,8 +10,8 @@
 
 | 项 | 值 | 打开 |
 |----|-----|------|
-| 公开 NS64 相对 L2 | **0.035115** · `dualview_r2` · **v9** | [`summary.json`](../summary.json) · [`/workspace/评测报告_最新指标_2026-08-06_174400.md`](/workspace/评测报告_最新指标_2026-08-06_174400.md) |
-| Spectral idle ms | **3.811 / 8.054 / 29.560**（64/128/256） | [`results.md`](../../results.md) §性能 |
+| 公开 NS64 相对 L2 | **0.035012** · `spec_ref_r2` · **v10** | [`summary.json`](../summary.json) · [`/workspace/评测报告_最新指标_2026-08-14_095200.md`](/workspace/评测报告_最新指标_2026-08-14_095200.md) |
+| Spectral idle ms | **3.797 / 8.037 / 29.295**（64/128/256） | [`results.md`](../../results.md) §性能 |
 | vs 官网 CPU 加速比 | ≈**19.5× / 11.1× / 10.0×**（旁注，≠ SOL） | [`SPECTRAL_SIX_AXIS_ORAL_2026-08-04.md`](SPECTRAL_SIX_AXIS_ORAL_2026-08-04.md) |
 | Checkpoint | `fno_ns/checkpoints/fno_ns_public_demo.pt` | — |
 | 正确性 worst rel | ≈**2.17e-7** ≪ 1e-4 | `summary.spectral_conv.rel_error` |
@@ -25,7 +25,7 @@
 | 0–15 | `brsmi` + 架构 | Biren 单卡；SUPA SpectralConv；FNO 复用必选算子 |
 | 15–30 | accuracy 表 | worst≈2e-7，远低于 1e-4 |
 | 30–50 | 三档 ms | mul 噪声级；墙在 C2R；formal **冻结**；讲 CPU 加速比 |
-| 50–70 | 流场图 | 公开 NS64 L2=0.035115；thaw+dualview → v9 |
+| 50–70 | 流场图 | 公开 NS64 L2=0.035012；Spectral-Refiner → v10 |
 | 70–85 | 本包 C+D | 失败诚实 ABORT；扩展三命令可抽查 |
 | 85–90 | Agent 索引 | 精品：26 / 30 / 32 / 33 / **35**（回滚与门禁） |
 
@@ -37,7 +37,7 @@
 
 | 裁决 | 实验 | 数字 |
 |------|------|------|
-| **KEEP 主报** | `dualview_r2` | L2 **0.035115** · v9 |
+| **KEEP 主报** | `spec_ref_r2` | L2 **0.035012** · v10 |
 | **ABORT / 已回滚** | freeze_r10 autochain 弱 promote | 0.035252 未破 gate(0.035202) → 回滚 v8 |
 | **NO_SIGNAL** | A1 `hard_reweight` / soft_r10 / hybrid·modes20 | Δ=0 或远差主报；精度停 |
 

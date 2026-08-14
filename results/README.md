@@ -17,7 +17,7 @@
 
 | 现行 | 历史（勿当任务单） |
 |------|-------------------|
-| `CURRENT.md` · `OPT_WAVE_MULTIAGENT_PLAN_*` · `LOOP_PROCESS.md` | `OPT_MASTER` · `OPT_ROUND2…10` · `HANDOFF_*` |
+| `CURRENT.md` · `HANDOFF_NEW_SESSION_2026-08-14.md` · `LOOP_PROCESS.md` | `_history/` 内 OPT_ROUND / OPT_WAVE / 旧 HANDOFF |
 | `/workspace/评测报告_最新指标_*.md`（唯一） | 已删旧戳；archives 内旧报告 |
 
 ## Phase 维护

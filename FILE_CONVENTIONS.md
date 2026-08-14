@@ -19,10 +19,10 @@
 | OPT 流程 | `skills/operator_opt_loop/LOOP_PROCESS.md` |
 | 自检 | `python3 skills/operator_opt_loop/run_loop.py --dry-run --strict` |
 | 行动姿态 | `results/run_logs/CURRENT.md` |
-| 新会话交接 | `results/run_logs/HANDOFF_NEW_SESSION_YYYY-MM-DD.md`（现行：`HANDOFF_NEW_SESSION_2026-08-04.md`） |
-| 最新计划卡 | `results/run_logs/OPT_WAVE_MULTIAGENT_PLAN_2026-08-03.md`（精度线已停） |
-| Agent 日志 | `development_log.md` |
-| 评测报告 | `/workspace/评测报告_最新指标_*.md`（**全局唯一**） |
+| 新会话交接 | `results/run_logs/HANDOFF_NEW_SESSION_YYYY-MM-DD.md`（现行：`HANDOFF_NEW_SESSION_2026-08-14.md`） |
+| 历史计划卡 | `results/run_logs/_history/OPT_WAVE_MULTIAGENT_PLAN_2026-08-03.md`（精度线已停） |
+| Agent 日志 | `AGENT_OFFICIAL.md`（抽查）+ `development_log.md`（全文） |
+| 评测报告 | `/workspace/评测报告_最新指标_*.md`（**全局唯一**；现行 2026-08-14_095200） |
 | SCP / 指标快照 | `demo/scp_description.md` · `demo/media/metrics_snapshot.md` |
 
 ## 3. 命名约定
@@ -47,7 +47,7 @@
 
 ## 5. 历史文件怎么处理
 
-- **不删**旧 `run_logs` / 旧 figures：答辩要轨迹。  
+- 旧 `run_logs` **迁入** `_history/`（答辩轨迹保留，根目录只留现行入口）。旧 figures 进 `demo/media/archive_history/`。  
 - 若文内仍写「现行方针」且已过时：文首加一行 `> **历史** · 现行见 CURRENT.md`。  
 - PPT 文件名可保留旧日期；正文标题与指针必须对齐现行主报。
 

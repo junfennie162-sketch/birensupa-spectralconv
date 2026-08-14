@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-08-07T13:48:19Z",
+  "updated_at": "2026-08-14T02:21:00Z",
   "dry_run": true,
   "strict": true,
   "public_ns64": {
-    "relative_l2": 0.03511497611179948,
-    "promoted_tag": "dualview_r2",
+    "relative_l2": 0.035011906176805496,
+    "promoted_tag": "spec_ref_r2",
     "checkpoint": "fno_ns/checkpoints/fno_ns_public_demo.pt",
-    "baseline": 0.03511497611179948,
-    "gate": 0.035014976111799476,
-    "next_probe_tag": "sched_samp_r8"
+    "baseline": 0.035011906176805496,
+    "gate": 0.03491190617680549,
+    "next_probe_tag": "sched_samp_r1"
   },
   "engineering": {
     "spectral_rel_error": 2.1701555345060285e-07,
@@ -18,24 +18,24 @@
   "spectral_rows": [
     {
       "resolution": "64x64",
-      "forward_time_ms": 3.811,
+      "forward_time_ms": 3.797,
       "memory_MB": 225.3
     },
     {
       "resolution": "128x128",
-      "forward_time_ms": 8.054,
+      "forward_time_ms": 8.037,
       "memory_MB": 253.3
     },
     {
       "resolution": "256x256",
-      "forward_time_ms": 29.56,
+      "forward_time_ms": 29.295,
       "memory_MB": 353.3
     }
   ],
   "expected_ms": {
-    "64x64": 3.811,
-    "128x128": 8.054,
-    "256x256": 29.56
+    "64x64": 3.797,
+    "128x128": 8.037,
+    "256x256": 29.295
   },
   "required_assets": {
     "summary": true,
@@ -82,15 +82,15 @@
   },
   "opt_round_latest": {
     "exists": true,
-    "path": "results/run_logs/OPT_ROUND10_PLAN_2026-08-03.md",
+    "path": "results/run_logs/_history/OPT_ROUND10_PLAN_2026-08-03.md",
     "round": 10
   },
   "eval_report": {
     "count": 1,
     "single": true,
-    "latest": "/workspace/评测报告_最新指标_2026-08-06_174400.md"
+    "latest": "/workspace/评测报告_最新指标_2026-08-14_095200.md"
   },
-  "agent_records": 40,
+  "agent_records": 43,
   "precision_posture": "stopped_after_round7_no_signal",
   "process_sop": [
     {
@@ -129,7 +129,7 @@
       "rule": "稳定文件 sync ai4s；有 promote 再 pack"
     }
   ],
-  "probe_cmd": "cd fno_ns && nohup python3 train_public_sched_sampling.py --tag sched_samp_r8 --baseline 0.0351149761118 --gate 0.0350149761118 --epochs 4 --early-stop-patience 2 --stop-on-gate > /tmp/sched_samp_r8.log 2>&1 &",
+  "probe_cmd": "cd fno_ns && nohup python3 train_public_sched_sampling.py --tag sched_samp_r1 --baseline 0.0350119061768 --gate 0.0349119061768 --epochs 4 --early-stop-patience 2 --stop-on-gate > /tmp/sched_samp_r1.log 2>&1 &",
   "next_actions": [
     "python3 skills/operator_opt_loop/run_loop.py --dry-run --strict",
     "./scripts/maintain_assets.sh check submit_gate",

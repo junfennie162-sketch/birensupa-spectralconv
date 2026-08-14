@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-04T01:40:00Z",
+  "updated_at": "2026-08-14T01:52:00Z",
   "current_phase": "submit_gate",
-  "notes": "submit_gate done. public L2=0.035302 (freeze_r9 / v8); ROUND10 NO_SIGNAL; autochain freeze_r10 0.035252 rolled back to v8; R11 stopped; Spectral idle frozen.",
+  "notes": "submit_gate done. public L2=0.035012 (spec_ref_r2 / v10); Spectral idle 3.797/8.037/29.295 (2026-08-14 recheck).",
   "phases": {
     "skeleton": {
       "title": "仓库骨架与选题对齐",

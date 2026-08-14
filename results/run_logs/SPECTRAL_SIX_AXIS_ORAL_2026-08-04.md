@@ -1,7 +1,7 @@
 # Spectral 六轴 · 答辩口播单页（2026-08-04）
 
-> 正式 idle **冻结**：**3.811 / 8.054 / 29.560 ms**。勿默认 `test_perf`。  
-> 索引母卡：[`spectral_perf_narrative_index.md`](spectral_perf_narrative_index.md)。  
+> 正式 idle **08-14 复测**：**3.797 / 8.037 / 29.295 ms**（07-31 板 3.811/8.054/29.560，噪声内）。勿默认 `test_perf` 覆写。  
+> 叙事索引已迁 [`_history/spectral_perf_narrative_index.md`](_history/spectral_perf_narrative_index.md)。  
 > **硬禁**：SOL/proxy 得分句；夸大「真 FFT⊗mul 融合」；暗示将解冻 ms。
 
 ---

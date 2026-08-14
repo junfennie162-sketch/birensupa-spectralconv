@@ -1,0 +1,7 @@
+{
+  "relative_l2": 0.03511497611179948,
+  "promoted_tag": "dualview_r2",
+  "residual": true,
+  "checkpoint": "fno_ns/checkpoints/fno_ns_public_demo.pt",
+  "updated_at": "2026-08-06T09:43:55Z"
+}

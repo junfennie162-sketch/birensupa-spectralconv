@@ -1,8 +1,8 @@
 {
   "meta": {
-    "updated_at": "2026-08-11T02:18:20Z",
+    "updated_at": "2026-08-14T01:44:34Z",
     "last_phase_marked": "submit_gate",
-    "notes": "Public NS64 FNO L2=0.035012 (spec_ref_r2)."
+    "notes": "SpectralConv auto 3.797/8.037/29.295 ms (warmup=10, iters=100). FNO L2=0.035012 (spec_ref_r2)."
   },
   "env": {
     "sdk": "/usr/local/birensupa/sdk/1.11.0.0.rc2",
@@ -83,148 +83,26 @@
         "warmup": 10,
         "iters": 100,
         "path": "auto",
-        "timing_scope": "CPU input through CPU output; synchronized wall clock",
-        "note": "idle recheck 2026-07-31; within noise of P8b 3.807/8.001/29.162"
+        "timing_scope": "CPU input through CPU output; synchronized wall clock"
       },
       "rows": [
         {
           "resolution": "64x64",
-          "forward_time_ms": 3.811,
+          "forward_time_ms": 3.797,
           "memory_MB": 225.3
         },
         {
           "resolution": "128x128",
-          "forward_time_ms": 8.054,
+          "forward_time_ms": 8.037,
           "memory_MB": 253.3
         },
         {
           "resolution": "256x256",
-          "forward_time_ms": 29.56,
+          "forward_time_ms": 29.295,
           "memory_MB": 353.3
         }
       ],
-      "measured_at": "2026-07-31T02:54:15Z"
-    },
-    "backward": {
-      "status": "pass",
-      "threshold": 0.0001,
-      "worst_rel": 6.252869866330002e-08,
-      "cases": [
-        {
-          "shape": "B2_Cin2_Cout3_4x4",
-          "fwd_rel": 4.5491461264646205e-08,
-          "grad_x_rel": 5.4103335145327947e-08,
-          "grad_w_rel": 6.252869866330002e-08,
-          "ok": true
-        },
-        {
-          "shape": "B2_Cin4_Cout4_8x8",
-          "fwd_rel": 4.1477115075849724e-08,
-          "grad_x_rel": 4.481754345420086e-08,
-          "grad_w_rel": 5.082164378222842e-08,
-          "ok": true
-        },
-        {
-          "shape": "B2_Cin4_Cout4_12x12",
-          "fwd_rel": 4.445655577001162e-08,
-          "grad_x_rel": 5.31553325799905e-08,
-          "grad_w_rel": 5.5756842698428954e-08,
-          "ok": true
-        }
-      ],
-      "note": "SpectralMulFunction: SUPA forward + conj-transpose einsum backward"
-    },
-    "conv3d": {
-      "status": "accuracy_pass",
-      "rel_error": 1.1885726536320362e-07,
-      "threshold": 0.0001,
-      "cases": [
-        {
-          "case": "tiny_8",
-          "shape": "B2_Cin2_Cout3_8x8x8",
-          "modes": "2x2x2",
-          "max_abs": 5.960464477539063e-08,
-          "max_rel": 8.426842867947926e-08,
-          "threshold": 0.0001,
-          "ok": true
-        },
-        {
-          "case": "small_16",
-          "shape": "B2_Cin4_Cout4_16x16x16",
-          "modes": "4x4x4",
-          "max_abs": 1.7881393432617188e-07,
-          "max_rel": 1.1885726536320362e-07,
-          "threshold": 0.0001,
-          "ok": true
-        }
-      ],
-      "note": "CPU rFFT3 + SUPA spectral_mul; official 4-corner weights1-4; NOT full 3D FNO"
-    },
-    "irregular": {
-      "status": "accuracy_pass",
-      "measured_at": "2026-08-02T00:31:47Z",
-      "passed": 9,
-      "total": 9,
-      "failed": [],
-      "worst_rel": 3.2015142409427905e-07,
-      "threshold": 0.0001,
-      "cases": [
-        {
-          "shape": "aspym_40x64",
-          "max_rel": 1.5931974346480909e-07,
-          "ok": true,
-          "threshold": 0.0001
-        },
-        {
-          "shape": "square_72x72",
-          "max_rel": 2.4531340266010275e-07,
-          "ok": true,
-          "threshold": 0.0001
-        },
-        {
-          "shape": "square_96x96",
-          "max_rel": 2.584404418962622e-07,
-          "ok": true,
-          "threshold": 0.0001
-        },
-        {
-          "shape": "square_100x100",
-          "max_rel": 2.6696516660218315e-07,
-          "ok": true,
-          "threshold": 0.0001
-        },
-        {
-          "shape": "square_160x160",
-          "max_rel": 3.2015142409427905e-07,
-          "ok": true,
-          "threshold": 0.0001
-        },
-        {
-          "shape": "square_192x192",
-          "max_rel": 2.717529954310802e-07,
-          "ok": true,
-          "threshold": 0.0001
-        },
-        {
-          "shape": "wider_256x64",
-          "max_rel": 2.441957071686065e-07,
-          "ok": true,
-          "threshold": 0.0001
-        },
-        {
-          "shape": "almost_2pow_48x48",
-          "max_rel": 1.562827887146457e-07,
-          "ok": true,
-          "threshold": 0.0001
-        },
-        {
-          "shape": "non2pow_28x28",
-          "max_rel": 1.5099635695187144e-07,
-          "ok": true,
-          "threshold": 0.0001
-        }
-      ],
-      "note": "defensive irregular shapes; not formal spectral_conv.perf"
+      "measured_at": "2026-08-14T01:44:34Z"
     }
   },
   "fno_ns": {

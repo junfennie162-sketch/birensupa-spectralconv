@@ -1,6 +1,6 @@
 # FNO 评测协议速查（2026-08-02）
 
-依据：[`/workspace/赛题文档/算子与模型赛道选手手册.md`](/workspace/赛题文档/算子与模型赛道选手手册.md) 提交/验收相关章节；行动方针见 `results/run_logs/OPT_WAVE_MULTIAGENT_PLAN_2026-08-03.md`；轮次纪律见 `skills/operator_opt_loop/LOOP_PROCESS.md`。
+依据：[`/workspace/赛题文档/算子与模型赛道选手手册.md`](/workspace/赛题文档/算子与模型赛道选手手册.md) 提交/验收相关章节；行动方针见 `results/run_logs/CURRENT.md`；轮次纪律见 `skills/operator_opt_loop/LOOP_PROCESS.md`。
 
 ## 1. 推理主指标（batch=16）
 

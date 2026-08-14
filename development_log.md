@@ -2,8 +2,9 @@
 
 > **官方必须项**（赛道评分「Agent 开发」约 15%）：未提交视为不合格。  
 > 要求：≥ **5 段**有效交互；覆盖 ≥ **3 类**场景（kernel / 超参 / 数据 / 瓶颈 / 可视化 / BIREN 平台）。  
-> 工具：Cursor Agent（SSH · 壁仞竞赛 Docker · SDK `1.11.0.0.rc2`）。  
-> **写法**：每段固定字段——工具 · 场景标签 · 目标 · 交互摘要 · Agent 建议 · 采纳 · 验证 · 未采纳及原因；忌流水账口号。
+> **评委请先打开 [`AGENT_OFFICIAL.md`](AGENT_OFFICIAL.md)**（抽查页 6 段，6 类场景全覆盖）。  
+> 下文为完整 **43** 段轨迹。工具：Cursor Agent（SSH · 壁仞竞赛 Docker · SDK `1.11.0.0.rc2`）。  
+> **写法**：每段固定字段——工具 · 场景标签 · 目标 · 交互摘要 · Agent 建议 · 采纳 · 验证 · 未采纳及原因。
 
 ## 场景对照索引（评委抽查入口 · 2026-08-04）
 
@@ -18,13 +19,15 @@
 
 | 主报口径 | 值 |
 |----------|-----|
-| 公开 NS64 L2 | **0.035302**（`freeze_r9` · 版本 v8） |
-| Spectral idle | **3.811 / 8.054 / 29.560 ms**（冻结） |
-| 行动方针 | [`OPT_WAVE_MULTIAGENT_PLAN_2026-08-03.md`](results/run_logs/OPT_WAVE_MULTIAGENT_PLAN_2026-08-03.md) |
-| 官方对照 | [`SUBMISSION_CHECKLIST.md`](SUBMISSION_CHECKLIST.md) · [`OFFICIAL_ASSET_ALIGNMENT_2026-08-03.md`](results/run_logs/OFFICIAL_ASSET_ALIGNMENT_2026-08-03.md) |
+| 公开 NS64 L2 | **0.035012**（`spec_ref_r2` · 版本 **v10**） |
+| Spectral idle | **3.797 / 8.037 / 29.295 ms**（2026-08-14 复测） |
+| 行动方针 | [`CURRENT.md`](results/run_logs/CURRENT.md) · Case [`CASE_项目全过程_V0到V10.md`](CASE_项目全过程_V0到V10.md) |
+| **评委 Agent 抽查（必须项）** | [`AGENT_OFFICIAL.md`](AGENT_OFFICIAL.md)（本页 6 段 × ≥3 类场景） |
+| 全文日志 | [`development_log.md`](development_log.md)（43 段） |
+| 官方对照 | [`SUBMISSION_CHECKLIST.md`](SUBMISSION_CHECKLIST.md) · [`OFFICIAL_ASSET_ALIGNMENT_2026-08-14.md`](results/run_logs/OFFICIAL_ASSET_ALIGNMENT_2026-08-14.md) |
 | OPT Loop | [`LOOP_PROCESS.md`](skills/operator_opt_loop/LOOP_PROCESS.md) · `run_loop.py --dry-run --strict` |
 | 文件规范 | [`FILE_CONVENTIONS.md`](FILE_CONVENTIONS.md) · [`CURRENT.md`](results/run_logs/CURRENT.md) |
-| 评测报告 | `/workspace/评测报告_最新指标_2026-08-04_155200.md`（规范见根 `AGENTS.md`） |
+| 评测报告 | `/workspace/评测报告_最新指标_2026-08-14_095200.md`（规范见根 `AGENTS.md`） |
 
 ## Agent 交互记录 1
 
@@ -719,4 +722,37 @@
 - 采纳的修改：`fandougarden_submit_20260806_181107.tar.gz`（≈2.7G）；sync `/workspace/ai4s/submission/`；刷 CURRENT / `ai4s/AGENTS.md`
 - 验证结果：ai4s demo/meta/summary 均为 **dualview_r2 · 0.035114976112**；评测报告 v9 在 ai4s `results/`；sha256 见 `.sha256`
 - 未采纳内容及原因：未重跑 Spectral `test_perf`（formal ms 仍冻结）
+
+## Agent 交互记录 41 · wave4 spec_ref_r2 → v10 + GitHub（2026-08-11）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：模型架构选型与超参搜索 · 数据/评测口径 · Agent 材料
+- 目标：从 spec_ref_r1 sidecar 再冲 gate；过 gate 则 promote v10 并推 GitHub
+- 关键提示词或交互摘要：用户「按照计划继续冲」→ wave4 链；「整理 submit/skill」→ v10 包；「提交到 GitHub」
+- Agent 建议：wave4 = spec_ref_r2 → thaw/qt/dualview/soup；Spectral-Refiner lite 续训 lr↓；beat gate 后 `promote_public_ckpt --tag spec_ref_r2`；tar 仅 sha256 入 git
+- 采纳的修改：`run_public_wave4_chain.sh`；`train_public_spectral_refiner_probe.py`（+ h1）；`fandougarden_submit_20260811_103945.tar.gz`（≈2.9G，git 仅 README+sha256）；刷 `skill.md` / `summary.json` / CURRENT / README v10
+- 验证结果：spec_ref_r2 **0.035011906** < gate **0.035015**（Δ≈3.1×10⁻⁶）；相对 v9 **+0.29%**；clean reeval 一致；Spectral idle 仍 **3.811/8.054/29.560**
+- 未采纳内容及原因：soup/H1 未超 spec_ref_r2 单模型；未把 2.9G tar 推 GitHub（超 100MB 限）；未刷独立评测报告 v10 md（可另开）
+
+## Agent 交互记录 42 · 交卷材料补强：编译/正确性/性能复测 + Agent 抽查页（2026-08-14）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：BIREN GPU 平台适配 · 结果分析与可视化 · Agent 材料
+- 目标：按官方最低清单补齐「编译命令、正确性结果、性能报告」；Agent 日志被判不合格时提供可抽查的 ≥5 段 × ≥3 类场景专页
+- 关键提示词或交互摘要：用户指出当前提交不是最新版；要求重跑检测；Agent 交互与场景覆盖需达标
+- Agent 建议：GPU idle 下重编 + `test_accuracy` + `test_perf` + FNO clean 复评；根目录新增 `AGENT_OFFICIAL.md` 六段完整字段；清单/README/results 对齐 v10
+- 采纳的修改：`AGENT_OFFICIAL.md`；`正确性验证报告_2026-08-14.md`；`性能检测报告_2026-08-14.md`；刷新 `brsmi_snapshot.txt`；`SUBMISSION_CHECKLIST.md`
+- 验证结果：accuracy worst **2.170e-7** PASS；perf **3.797 / 8.037 / 29.295 ms**；FNO L2 **0.035011906** 与 meta 一致；抽查页 6 段覆盖官方 6 类场景
+- 未采纳内容及原因：未把历史 5-case 大 shape 全部纳入本次 accuracy 脚本（现行 `test_accuracy.py` 为 3-case 主测，扩展测试仍保留独立脚本）
+
+## Agent 交互记录 43 · 服务器文件清理与现行文档对齐（2026-08-14）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：结果分析与可视化 · Agent 材料
+- 目标：清掉无用文件，把仍要用的文档数字对齐 v10 / 08-14 复测
+- 关键提示词或交互摘要：用户「再次查看服务器网上的文件及内容，把没用的文件删除和将有用的文件内容优化」
+- Agent 建议：评委入口文件留根目录；旧探针 JSON/计划卡进 `_history/`；combo 移出提交根；现行 md 一律写 0.035012 / 3.797 板；不删公开数据与正式 ckpt
+- 采纳的修改：删 `__pycache__` / 空 logs / ppt-master 缓存 / 根目录重复 Case 与旧评测报告；`run_logs` 根剩约 16 个入口；换戳 `评测报告_最新指标_2026-08-14_095200.md`；刷 LAYOUT / CURRENT / JUDGE / PPT / skill / fno_ns README
+- 验证结果：`run_loop.py --dry-run --strict` PASS（EXPECTED_MS 对齐 08-14 板）；评测报告全局唯一；ai4s 已 sync 现行文档
+- 未采纳内容及原因：未删 `ns_like_v2` 与公开 `.pt`（复现需要）；未删 `train_public_*.py` 探针脚本（答辩轨迹）；未改 `ai4s-n`
 

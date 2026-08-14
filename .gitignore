@@ -1,13 +1,43 @@
+# Git / GitHub（提交根 = 本目录）
 
-# v10 push: keep GitHub under size limits
+# Build artifacts（.su 源码入库；.so 本机重编）
+__pycache__/
+*.py[cod]
+*.o
+*.so
+*.a
+*.egg-info/
+build/
+dist/
+
+# Logs / editor
+*.log
+.DS_Store
+*.swp
+.idea/
+.vscode/
+.env
+.env.*
+
+# 公开 NS / 工程数据（单文件数百 MB，不入库）
 fno_ns/data/*.pt
+
+# Checkpoints：只留正式 demo + 工程旁注 demo（均 <20MB）
 fno_ns/checkpoints/*.pt
 !fno_ns/checkpoints/fno_ns_public_demo.pt
 !fno_ns/checkpoints/demo_batch.pt
+!fno_ns/checkpoints/fno_ns_demo.pt
+fno_ns/results/
+
+# 完整交卷 tar（2.9G）与早期官网包
+*.tar.gz
 results/archives/**/*.tar.gz
-results/archives/**/*.pt
-*.so
+results/archives/legacy_spectral_conv_combo/
+results/PPT_CLOUD*.zip
 
-*.o
-
-results/archives/fandougarden_submit_*/
+# 探针历史（答辩轨迹留本机；GitHub 只留 README）
+results/run_logs/_history/**
+!results/run_logs/_history/README.md
+results/run_logs/*.pid
+results/run_logs/*_nohup.out
+results/run_logs/*_runner.out

@@ -29,20 +29,21 @@
 
 1. `source brsw_set_env.sh`；`export SUPA_BASE=...`
 2. 方式一（可选）：`my_task_direct` → `make build && make run-accuracy`
-3. 方式二：`submission/spectral_conv/./build.sh`
+3. 方式二：`cd spectral_conv && ./build.sh`
 4. `python3 test_accuracy.py`（rel ≤ 1e-4 vs 官网双角 reference）
 5. `python3 test_perf.py`（64/128/256；idle；写 formal 须无争用）
 6. `cd ../fno_ns`：公开集评测 / `visualize.py`（demo_batch 须 public_ns64）
-7. FNO 推理主表：`python3 benchmark_fno_batch16.py`（先过 chain 一致性；默认公开 NS64）
-8. FNO 精度（选修）：主报已 **v10 `spec_ref_r2`**；机制见 `train_public_spectral_refiner_probe.py` + wave4 链（Spectral-Refiner lite · 仅训 spectral + Sobolev H⁻¹ 损失）
-9. 训练吞吐加分：`python3 benchmark_train_throughput.py`（CPU/`use_supa=False`）
-10. Agent 回放：`python3 skills/operator_opt_loop/run_loop.py --dry-run --strict`（流程见 `skills/operator_opt_loop/LOOP_PROCESS.md`）
+7. **Agent 必须项抽查**：提交根 [`AGENT_OFFICIAL.md`](AGENT_OFFICIAL.md)（≥5 段有效交互、≥3 类场景）+ [`development_log.md`](development_log.md)
+8. FNO 推理主表：`python3 benchmark_fno_batch16.py`（先过 chain 一致性；默认公开 NS64）
+9. FNO 精度（选修）：主报已 **v10 `spec_ref_r2`**；机制见 `train_public_spectral_refiner_probe.py` + wave4 链（Spectral-Refiner lite · 仅训 spectral + Sobolev H⁻¹ 损失）
+10. 训练吞吐加分：`python3 benchmark_train_throughput.py`（CPU/`use_supa=False`）
+11. Agent 回放：`python3 skills/operator_opt_loop/run_loop.py --dry-run --strict`（流程见 `skills/operator_opt_loop/LOOP_PROCESS.md`）
 
 ## 输出
 
 - 正确性 / 性能日志与 `results/summary.json`
 - FNO 图：`results/figures/fno_ns_pred_vs_gt_*.png`、sample_strip
-- 主报：公开 L2 **0.035012**（`spec_ref_r2` · **v10**）；上一正式 v9 `dualview_r2` 0.035115；Spectral idle **3.811 / 8.054 / 29.560 ms**
+- 主报：公开 L2 **0.035012**（`spec_ref_r2` · **v10**）；上一正式 v9 `dualview_r2` 0.035115；Spectral 本次 idle **3.797 / 8.037 / 29.295 ms**
 
 ## 能力边界
 
@@ -87,13 +88,13 @@ kernel 选择背后的依据，评审问「为什么这么改」时直接对照�
   `clone()`），让下一次 call 覆盖 — 64/128 节省约 18 MB。
 - 缩到 `_BUFFER_CACHE_MAX=4`，防极端 shape 切换时把缓存填爆。
 
-正式 `test_perf.py` idle 主表（warmup=10 / iters=100，`use_sufft="auto"`，CPU→CPU；**冻结**）：
+正式 `test_perf.py` idle 主表（warmup=10 / iters=100，`use_sufft="auto"`，CPU→CPU；**2026-08-14 复测**）：
 
 | resolution | forward_ms | peak memory_MB |
 |------------|-----------:|---------------:|
-| 64×64      | **3.811**  | 225.3          |
-| 128×128    | **8.054**  | 253.3          |
-| 256×256    | **29.560** | 353.3          |
+| 64×64      | **3.797**  | 225.3          |
+| 128×128    | **8.037**  | 253.3          |
+| 256×256    | **29.295** | 353.3          |
 
 说明：vs 官网 CPU 参考加速比约 **19.5× / 11.1× / 10.0×**（非竞品 GPU）。历史中间板（R7 时代约 5.3/13.7/52）仅作演进痕迹，**不得**覆盖 formal 主表。口径见 `results/run_logs/tune_skill_disclaimer_2026-08-01.md`。
 
@@ -160,7 +161,7 @@ python3 tune.py --shape 64 96 128 256
 | 128 | fused | 2 | 13.702 | 137.9 |
 | 256 | fused | 8 | 52.720 | 522.3 |
 
-> Disclaimer：tune JSON 仅驱动 `use_sufft="auto"` 路径选择；formal 主表以 idle **3.811 / 8.054 / 29.560** 为准（见 `tune_skill_disclaimer_2026-08-01.md`）。
+> Disclaimer：tune JSON 仅驱动 `use_sufft="auto"` 路径选择；formal 主表以 idle **3.797 / 8.037 / 29.295** 为准（08-14 复测；见 `_history/tune_skill_disclaimer_2026-08-01.md`）。
 
 ### 评审卖点
 

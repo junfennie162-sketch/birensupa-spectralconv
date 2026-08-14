@@ -1,45 +1,39 @@
-# FNO · Navier-Stokes（进阶 C）
+# FNO · Navier-Stokes（进阶）
 
-基于 `../spectral_conv` 自定义算子搭建完整 FNO，求解二维 Navier-Stokes 涡度方程。
+复用 `../spectral_conv` 必选算子，≥4 层 FNO，公开 NS64 涡度 10→1。
 
-## 验收
-
-- Fourier Layer ≥ 4 层
-- 数据：公开 NS 2D 推荐；本机默认离线 NS-like（见 `data/README.md`）
-- 报告相对 L2；可视化预测 vs ground truth
-- 推理走 fused SUPA 路径；训练走 CPU torch 可微路径
-
-## 超参（当前正式）
+## 现行主报
 
 | 项 | 值 |
 |----|-----|
-| resolution / modes / width | 64 / 12 / 32 |
-| layers | 4 |
-| n_train / n_test / epochs | 256 / 32 / 40 |
-| lr | 8e-4（Adam + cosine） |
-| 数据 | `generated_ns_like_v1e-3` |
-| 相对 L2（SUPA） | ≈ **0.0173** |
+| 数据 | `data/navier_stokes_v1e-3_N1200_T20.pt`（1000/128 · seed 20260722） |
+| 协议 | eval 10→1 · residual · 相对 L2 |
+| Checkpoint | `checkpoints/fno_ns_public_demo.pt` |
+| Tag / 版本 | `spec_ref_r2` · **v10** |
+| 公开 L2 | **0.035012** |
+| 结构 | 4 层 · width=32 · modes=16 · 64×64 |
 
-## 文件
+工程旁注（**非公开分**）：自建 v2 `fno_ns_demo.pt` L2 ≈ 0.005144。口径见 `../results/data_disclosure.md`。
 
-| 文件 | 作用 |
-|------|------|
-| `model.py` | FNO（eval：fused 双角；train：torch einsum） |
-| `dataset.py` | NS-like 生成 / 缓存 / 划分 |
-| `data/README.md` | 数据来源与公开集替换说明 |
-| `test_forward.py` | 加长训 + SUPA 前向 + 相对 L2 |
-| `visualize.py` | 流场对比图 → `../results/figures/` |
-
-## 运行
+## 评委入口
 
 ```bash
 source /usr/local/birensupa/sdk/1.11.0.0.rc2/scripts/brsw_set_env.sh
 export SUPA_BASE=/usr/local/birensupa/sdk/1.11.0.0.rc2
 cd /workspace/ai4s-f/submission/fno_ns
-python3 test_forward.py
-python3 visualize.py
+python3 test_forward.py     # 公开集复评
+python3 visualize.py        # Pred / GT
 ```
 
-## 状态
+## 文件（现行 vs 探针）
 
-加长训已通；相对 L2 较初版 ~0.05 / 加强版 ~0.036 降至 **~0.017**。外网可用时优先替换公开 HDF5/HF。
+| 文件 | 角色 |
+|------|------|
+| `model.py` | FNO（eval：fused；train：CPU 可微） |
+| `test_forward.py` | 公开集前向 + 相对 L2 |
+| `visualize.py` | 流场图 |
+| `train_public_spectral_refiner_probe.py` | v10 机制（Spectral-Refiner lite） |
+| `promote_public_ckpt.py` | 破 gate 后人工 promote |
+| 其它 `train_public_*.py` | **历史探针**（答辩轨迹，勿当现行入口） |
+
+权重说明：`checkpoints/README.md`。

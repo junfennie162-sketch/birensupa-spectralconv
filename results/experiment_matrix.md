@@ -1,8 +1,8 @@
 # 对照实验矩阵 · KEEP / KILL / ABORT
 
 > 用途：答辩/SCP「失败也展示」证据链。主报数字不得混入旁注行。  
-> 主报：公开 NS64 L2=**0.035115**（`dualview_r2` · v9）；Spectral idle=**3.811 / 8.054 / 29.560 ms**。  
-> 现行指针：[`run_logs/CURRENT.md`](run_logs/CURRENT.md) · 流程：[`../skills/operator_opt_loop/LOOP_PROCESS.md`](../skills/operator_opt_loop/LOOP_PROCESS.md) · 计划卡：[`run_logs/OPT_WAVE_MULTIAGENT_PLAN_2026-08-03.md`](run_logs/OPT_WAVE_MULTIAGENT_PLAN_2026-08-03.md)
+> 主报：公开 NS64 L2=**0.035012**（`spec_ref_r2` · **v10**）；Spectral idle=**3.797 / 8.037 / 29.295 ms**（08-14 复测）。  
+> 现行指针：[`run_logs/CURRENT.md`](run_logs/CURRENT.md) · 流程：[`../skills/operator_opt_loop/LOOP_PROCESS.md`](../skills/operator_opt_loop/LOOP_PROCESS.md) · 历史计划卡：[`run_logs/_history/OPT_WAVE_MULTIAGENT_PLAN_2026-08-03.md`](run_logs/_history/OPT_WAVE_MULTIAGENT_PLAN_2026-08-03.md)
 
 ## 创新点卡片（KEEP · 主卖点）
 
@@ -11,7 +11,7 @@
 | 双角 fused | suFFT R2C → SUPA gather/scatter mul → C2R；频谱常驻设备 | `spectral_conv_ops.py`；idle 主表 |
 | residual + hf + aug | 公开 NS 难例：残差头 + 频域加权 + 周期 roll | `train_public_ns64_boost.py`；boost→sq3b |
 | multistep TF + soft | 训练多步 teacher-forcing + 轻量能量/谱 soft | L2 0.036576 历史主报 |
-| sched → soft → freeze → **thaw+dualview** | 末 2 层解冻 + 双视图一致性 | `dualview_r2`；L2 **0.035115** · v9 |
+| sched → freeze → thaw → **Spectral-Refiner** | 只训 spectral + Sobolev H⁻¹ | `spec_ref_r2`；L2 **0.035012** · **v10** |
 | 口径闸 | 公开 1000/128 与自建 v2 严格分栏；禁伪官方 | `data_disclosure.md`；WAVE plan |
 
 ## Spectral / 算子线
@@ -43,7 +43,8 @@
 | sched-sampling r5 | →0.035725 | KEEP 历史 · v7 | tag `sched_samp_r5` |
 | soft_r8 | →0.035623 | KEEP 历史台阶 | 曾 live；未单独编报告 v |
 | freeze_r9 | →**0.035302** | KEEP 历史 · v8 | 冻 spectral；相对 v7 +1.18% |
-| **dualview_r2** | →**0.035115** | **KEEP 当前主报 · v9** | long_push；相对 v8 +0.53%；已 promote |
+| **dualview_r2** | →0.035115 | KEEP 历史 · v9 | long_push |
+| **spec_ref_r2** | →**0.035012** | **KEEP 当前主报 · v10** | Spectral-Refiner lite；2026-08-14 复评一致 |
 | freeze_r10（手跑） | →0.035287 | ABORT promote | 近失 gate 0.035202；NO_SIGNAL |
 | freeze_r10（autochain） | →0.035252 | ABORT promote / **已回滚 v8** | 未破 gate；`promote=true` 违规写入后 demote |
 | soft_r10 | =0.035302 | ABORT | Δ=0 early_stop；停精度 |
@@ -68,4 +69,4 @@
 
 1. Promote：公开 1000/128 test L2 须破声明 gate（baseline−1e-4）且人工确认；禁止仅「优于 live」自动 promote。  
 2. 失败实验保留日志，不污染 `fno_ns_public_demo.pt`。  
-3. Spectral formal ms 冻结；新数字进 `run_logs` / `optimization.*` 旁注。
+3. Spectral formal ms 以 summary 08-14 复测为准；与 07-31 板噪声内一致，不另编算子 v 号。

@@ -55,11 +55,11 @@ python3 test_sufft_accuracy.py   # 加强路径
 python3 test_perf.py
 ```
 
-## 状态（2026-07-31）
+## 状态（2026-08-14）
 
 - 官网基准已在 CPU 复现（正确性 + 64/128/256 性能表）。
 - **正式热路径**：`use_sufft="auto"` → fused suFFT（1D×2）+ SUPA gather-scatter mul + trunc/pack（P2–P8b）。
-- **提交主表（idle）**：**3.811 / 8.054 / 29.560 ms** @64/128/256；worst rel ≈ 2.17e-7。
+- **提交主表（idle）**：**3.797 / 8.037 / 29.295 ms** @64/128/256（08-14 复测；07-31 板 3.811/8.054/29.560）；worst rel ≈ 2.17e-7。
 - v1（CPU FFT + SUPA mul）保留作对照/可微训练路径，**不是**正式性能主表。
 - 本机 `libsufft` **无** `BuildPlan2d`/`PlanMany` 导出；Plan2d / strided pack / `torch.fft@SUPA` **已封死**。
 - Spectral formal ms：**冻结**（见 `results/run_logs/OPT_MASTER_PLAN_2026-07-31.md`）；仅允许 idle 护栏复测。

@@ -2,8 +2,9 @@
 
 <p align="left">
   <b>书生国智科探挑战赛</b> · 壁仞飞翔杯 · 赛道五（模型与算子）<br/>
-  队伍：<b>翻斗花园</b> · 中北大学 · 提交根：<code>submission/</code><br/>
-  仓库：<a href="https://github.com/Aafff623/fandou-ai4s">Aafff623/fandou-ai4s</a>
+  队伍：<b>翻斗花园</b> · 中北大学<br/>
+  提交仓库：<a href="https://github.com/junfennie162-sketch/birensupa-spectralconv">junfennie162-sketch/birensupa-spectralconv</a>（clone 后即提交根）<br/>
+  工作区镜像：<a href="https://github.com/Aafff623/fandou-ai4s">Aafff623/fandou-ai4s</a>
 </p>
 
 在壁仞 **Biren106B** 单卡上，以 **SUPA + PyTorch Extension（方式二）** 实现 FNO 核心算子 **Spectral Convolution**，并组装 ≥4 层 FNO，完成二维不可压 Navier-Stokes **涡度场** 的公开集预测与可视化。开发过程由 Cursor / 壁仞 Agent 全程辅助，日志可抽查复现。
@@ -14,18 +15,46 @@
 
 | 主报项 | 现行值 |
 |--------|--------|
-| 公开 NS64 相对 L2 | **0.035302** · tag `freeze_r9` · 评测报告 **v8** |
-| Spectral idle（64 / 128 / 256） | **3.811 / 8.054 / 29.560 ms**（正式板冻结） |
+| 公开 NS64 相对 L2 | **0.035012** · tag `spec_ref_r2` · **v10** |
+| Spectral idle（64 / 128 / 256） | **3.797 / 8.037 / 29.295 ms**（2026-08-14 idle 复测；历史板 3.811/8.054/29.560） |
 | Spectral 正确性 worst rel | ≈ **2.17×10⁻⁷**（阈值 `1e-4`） |
 | Checkpoint | `fno_ns/checkpoints/fno_ns_public_demo.pt` |
 | Phase | `submit_gate` **done** |
-| 精度姿态 | **永久停训**（近失未破 gate；主报不编新 v） |
+| 精度姿态 | **v10 promote**（wave4 · Spectral-Refiner lite） |
+
+> **GitHub 不含**：公开 NS `.pt`（约 376MB）与 2.9G 完整 tar。FNO 复评请自备 `fno_ns/data/navier_stokes_v1e-3_N1200_T20.pt`；权重已入库 `fno_ns/checkpoints/fno_ns_public_demo.pt`。
 
 > **真源指针**
 >
 > 1. 数字：[`results/summary.json`](results/summary.json)
 > 2. 行动：[`results/run_logs/CURRENT.md`](results/run_logs/CURRENT.md)
-> 3. 官方对照：[`SUBMISSION_CHECKLIST.md`](SUBMISSION_CHECKLIST.md) · [`skill.md`](skill.md)
+> 3. 官方对照：[`SUBMISSION_CHECKLIST.md`](SUBMISSION_CHECKLIST.md) · [`skill.md`](skill.md) · **[`AGENT_OFFICIAL.md`](AGENT_OFFICIAL.md)**（Agent 必须项抽查）
+
+---
+
+## 交卷必跑（编译 / 正确性 / 性能）
+
+```bash
+source /usr/local/birensupa/sdk/1.11.0.0.rc2/scripts/brsw_set_env.sh
+export SUPA_BASE=/usr/local/birensupa/sdk/1.11.0.0.rc2
+cd spectral_conv && ./build.sh   # clone 后已在提交根；本机路径也可能是 …/submission
+
+# 1) 编译必选算子（SUPA + PyTorch Extension）
+cd spectral_conv && ./build.sh
+
+# 2) 正确性：相对误差 ≤ 1e-4（现行 worst ≈ 2.17e-7）
+python3 test_accuracy.py
+
+# 3) 性能：64/128/256 idle（现行 3.797 / 8.037 / 29.295 ms）
+python3 test_perf.py
+
+# 4) FNO 公开集复评（期望 tag=spec_ref_r2，L2≈0.035012）
+cd ../fno_ns && python3 test_forward.py
+```
+
+报告落点：[`results.md`](results.md) · [`results/run_logs/正确性验证报告_2026-08-14.md`](results/run_logs/正确性验证报告_2026-08-14.md) · [`results/run_logs/性能检测报告_2026-08-14.md`](results/run_logs/性能检测报告_2026-08-14.md)
+
+Agent 必须项：[`AGENT_OFFICIAL.md`](AGENT_OFFICIAL.md)（≥5 段、≥3 类场景）+ [`development_log.md`](development_log.md) + [`skill.md`](skill.md)
 
 ```bash
 # 一键自检（材料 / 口径硬门禁）
@@ -39,7 +68,7 @@ python3 skills/operator_opt_loop/run_loop.py --dry-run --strict
 建议按序打开；第 0 步为一页包。
 
 1. **一页包 + PPT** → [`JUDGE_3MIN_PACK_2026-08-04.md`](results/run_logs/JUDGE_3MIN_PACK_2026-08-04.md) · [`PPT答辩冻结稿_2026-08-04.md`](results/PPT答辩冻结稿_2026-08-04.md)
-2. **主报数字** → [`summary.json`](results/summary.json) · L2 **0.035302**（`freeze_r9` · v8）
+2. **主报数字** → [`summary.json`](results/summary.json) · L2 **0.035012**（`spec_ref_r2` · v10）
 3. **Spectral 口播** → [`results.md`](results.md) · [六轴口播](results/run_logs/SPECTRAL_SIX_AXIS_ORAL_2026-08-04.md)
 4. **扩展抽查** → [`extension_showcase.md`](results/run_logs/extension_showcase.md) · [`SPECTRAL_BONUS_AUDIT_CARD.md`](results/run_logs/SPECTRAL_BONUS_AUDIT_CARD.md)
 5. **瓶颈解剖** → [`ERROR_AUTOPSY_VERDICT_2026-08-04.md`](results/run_logs/ERROR_AUTOPSY_VERDICT_2026-08-04.md) · [`demo/media/README.md`](demo/media/README.md)
@@ -163,9 +192,9 @@ python3 test_perf.py
 
 | 分辨率 | formal idle |
 |--------|-------------|
-| 64×64 | **3.811 ms** |
-| 128×128 | **8.054 ms** |
-| 256×256 | **29.560 ms** |
+| 64×64 | **3.797 ms** |
+| 128×128 | **8.037 ms** |
+| 256×256 | **29.295 ms** |
 
 配置：warmup=`10` · iters=`100` · 同步 wall-clock。
 
@@ -223,7 +252,7 @@ python3 test_perf.py
 | 划分 | n_train=`1000` / n_test=`128` · seed=`20260722` |
 | 任务 | clean **10→1**（前 10 帧 GT → 预测第 11 帧） |
 | 指标 | 相对 L2：`‖pred−gt‖ / ‖gt‖` |
-| 主报 | **0.03530218452215195**（`freeze_r9` · v8） |
+| 主报 | **0.035011906176805496**（`spec_ref_r2` · **v10**） |
 
 披露全文：[`results/data_disclosure.md`](results/data_disclosure.md)
 
@@ -328,7 +357,7 @@ python3 test_perf.py
 # 三档 64/128/256；正式板已冻结，交卷勿无故覆写
 ```
 
-现行正式板：**3.811 / 8.054 / 29.560 ms**。
+现行正式板：**3.797 / 8.037 / 29.295 ms**（2026-08-14 idle 复测；07-31 板 3.811/8.054/29.560，噪声内）。
 
 ### 5.4 FNO 前向与可视化
 
@@ -421,11 +450,11 @@ submission/
 | 项 | 结果 |
 |----|------|
 | SpectralConv rel（formal） | ≈ **2.17e−7** ≤ `1e-4` |
-| Spectral idle 64/128/256 | **3.811 / 8.054 / 29.560 ms** |
+| Spectral idle 64/128/256 | **3.797 / 8.037 / 29.295 ms** |
 | spectral_mul backward | worst ≈ 6.3e−8 |
 | SpectralConv3d（四角） | worst ≈ 1.19e−7 |
 | FNO 层数 | **4** |
-| FNO 公开 NS64 L2 | **0.035302**（`freeze_r9` · v8） |
+| FNO 公开 NS64 L2 | **0.035012**（`spec_ref_r2` · v10） |
 | FNO batch16 | ≈1.60M gps · peak≈202 MB |
 | FNO 训练吞吐（旁注） | ≈3.47×10⁴ gps |
 | 自建 v2（非公开） | ≈0.005144 |
@@ -445,7 +474,7 @@ submission/
 
 ```text
 gate = live_best − 1e−4
-例：0.035302 → gate 0.035202
+例：0.035012 → gate 0.034912
 
 仅当同时满足：
   (1) best < gate
@@ -460,11 +489,13 @@ gate = live_best − 1e−4
 
 | 实验 | 数字 | 处置 |
 |------|------|------|
-| `freeze_r9` | **0.035302** | **KEEP · 现行主报 v8** |
+| `spec_ref_r2` | **0.035012** | **KEEP · 现行主报 v10** |
+| `dualview_r2` | 0.035115 | 历史 v9 |
+| `freeze_r9` | 0.035302 | 历史 v8 |
 | freeze_r10 手跑 / autochain | 0.035287 / 0.035252 | 未破 gate；弱写入 **已回滚** |
 | soft / hybrid / modes20 / A1 | Δ≈0 或差于主报 | NO_SIGNAL / KILL |
 | Error Autopsy D（epochs=0） | ρ(e1,g)≈0.80；worst16∩=10 | 产出裁决与答辩三图 |
-| `pf_clean_r1`（clean-anchor PF） | best **0.035216** | **NO_SIGNAL** · 差 gate≈1.4e−5 · **未 promote** · **精度永久停** |
+| `pf_clean_r1`（clean-anchor PF） | best **0.035216** | **NO_SIGNAL** · 差 gate≈1.4e−5 · **未 promote** |
 
 ### 8.3 红线
 

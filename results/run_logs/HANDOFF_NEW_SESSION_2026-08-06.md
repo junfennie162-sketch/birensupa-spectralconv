@@ -1,8 +1,6 @@
-# Handoff · 新 Session（2026-08-06 · 现行）
+# Handoff · 新 Session（2026-08-06）
 
-> **现行交接稿。**  
-> 旧稿 [`HANDOFF_NEW_SESSION_2026-08-04.md`](HANDOFF_NEW_SESSION_2026-08-04.md)（及更早）为 **历史**，勿当任务单。  
-> 数字 / 姿态以 [`CURRENT.md`](CURRENT.md) + [`summary.json`](../summary.json) 为准。
+> **历史** · 现行见 [`HANDOFF_NEW_SESSION_2026-08-14.md`](HANDOFF_NEW_SESSION_2026-08-14.md) · [`CURRENT.md`](CURRENT.md)。
 
 ---
 
