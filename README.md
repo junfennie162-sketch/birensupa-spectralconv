@@ -22,7 +22,7 @@
 | Phase | `submit_gate` **done** |
 | 精度姿态 | **v10 promote**（wave4 · Spectral-Refiner lite） |
 
-> **GitHub 下载交卷包**：[`contest_submit/`](contest_submit/)（约 39MB；不含公开 NS `.pt`）。完整 2.9G 工作区 tar 无法入库。FNO 复评请自备 `fno_ns/data/navier_stokes_v1e-3_N1200_T20.pt`；权重已入库 `fno_ns/checkpoints/fno_ns_public_demo.pt`。
+> **GitHub 下载交卷包**：[`contest_submit/`](contest_submit/) 提供**英文版 / 中文版**两套（各约 39MB；不含公开 NS `.pt`）。完整 2.9G 工作区 tar 无法入库。
 
 > **真源指针**
 >
