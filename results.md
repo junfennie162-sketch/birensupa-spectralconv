@@ -1,174 +1,66 @@
 # 测试结果
 
-## 1. 环境
+本文只写两件事：**对比**（同一套官方设定上，参考/起点 vs 我们优化后的结果），以及**我们改了代码和算子的哪些地方**。没有换评测数据。中间版本过程不在这里展开。
 
-- SDK：`/usr/local/birensupa/sdk/1.11.0.0.rc2`
-- PyTorch：`2.9.0+cu128` + `torch_br`
-- 设备：BIREN 单卡 Biren106B，PyTorch 设备名 `supa`
-- `torch.cuda.is_available() == False` 属预期
-- 每个新终端先执行：
+原始终端输出（未改原文）在 [`results/run_logs/`](results/run_logs/)；交卷包里另有 Cursor 对话原文 `agent_logs/` / `交互日志/`。
 
-```bash
-source /usr/local/birensupa/sdk/1.11.0.0.rc2/scripts/brsw_set_env.sh
-export SUPA_BASE=/usr/local/birensupa/sdk/1.11.0.0.rc2
-```
+## 1. 性能对比和正确性对比
 
-## 2. 必选 Spectral Convolution
+### 1.1 必选算子：官网参考 vs 我们优化后的实现
 
-### 2.1 实现
+频谱卷积按官网算子题评测，不读 Navier-Stokes 数据。正确性对官网同款 PyTorch 参考；性能对本机跑出来的官网 CPU 参考脚本。比的是算子实现优化了多少。
 
-正式实现位于 `spectral_conv/`：
+| 项目 | 官网 / 参考 | 我们优化后（SUPA + Extension） | 说明 |
+|------|-------------|-------------------------------|------|
+| 正确性（最差相对误差） | 门槛 ≤ `1e-4` | **2.170×10⁻⁷**（3/3 PASS） | 对 `reference_pytorch.py` / 官网双角 |
+| 64×64 前向 | 74.142 ms（CPU 参考） | **3.797 ms** | 约 19.5× |
+| 128×128 前向 | 89.000 ms（CPU 参考） | **8.037 ms** | 约 11.1× |
+| 256×256 前向 | 295.983 ms（CPU 参考） | **29.295 ms** | 约 10.1× |
 
-- `spectral_conv_ext.su`：SUPA 频域复数乘 kernel
-- `spectral_conv_ext.cpp`：PyTorch Extension、suFFT 1D plan 拼接、plan/workspace cache、`spectral_mul_out` / `dual_out`
-- `spectral_conv_ops.py`：CPU FFT v1 与 suFFT fused 双路径，`min(H,W)>=64` 时 auto 选择 fused
-- Reference：`reference_pytorch.py`
+对应原始 log：`results/run_logs/official_recheck_2026-08-14.log`、`spectral_accuracy_2026-08-14.md`、`spectral_perf_2026-08-14.md`、`official_baseline_2026-07-21.md`。
 
-### 2.2 正确性
+### 1.2 进阶模型：官方数据集上，优化前 vs 我们现在
 
-2026-08-14 交卷复测（`./build.sh` + `python3 test_accuracy.py`，GPU idle）：
+数据始终是官方公开 NS64：`navier_stokes_v1e-3_N1200_T20.pt`。没有改这份数据。比的是同一份官方数据、同一套划分上，代码和训练优化把相对 L2 压到多少。
 
-| case | shape | modes | relative error | 结果 |
-|---|---|---|---:|---|
-| tiny_8x8 | B2/Cin2/Cout3/8×8 | 2×2 | 4.675e-8 | PASS |
-| small_32x32 | B2/Cin4/Cout4/32×32 | 8×8 | 1.137e-7 | PASS |
-| target_64x64 | B2/Cin4/Cout4/64×64 | 12×12 | 2.170e-7 | PASS |
+| 项目 | 官方设定 | 我们在官方数据上的结果 |
+|------|----------|------------------------|
+| 数据 | `navier_stokes_v1e-3_N1200_T20.pt`（公开 NS64） | **同一文件，未改数据** |
+| 划分 | 训练 1000 / 测试 128，种子 `20260722` | 同协议 |
+| 任务 | 前 10 帧 → 第 11 帧，64×64，≥4 层 FNO | 4 层，width=32，modes=16 |
+| 相对 L2（正式成绩） | 越低越好 | **0.035012** |
+| 同一官方数据上的优化 | 刚接上官方集时 **0.041835** | **0.035012**（相对下降约 16.3%） |
+| 权重 | — | `fno_ns/checkpoints/fno_ns_public_demo.pt` |
+| 原始 log | — | `official_recheck_2026-08-14.log` 的 FNO REEVAL 段；`fno_public_spec_ref_r2_20260811_095727.log` |
 
-- worst relative error：**2.170e-7**
-- 阈值：`1e-4`
-- 结论：3/3 PASS · 报告 [`results/run_logs/正确性验证报告_2026-08-14.md`](results/run_logs/正确性验证报告_2026-08-14.md)
+正式成绩就是上表的 **0.035012**。复现：先编译必选算子，再在 `fno_ns/` 跑 `python3 render_official_demo.py`（需自备上述官方 `.pt`）。
 
-### 2.3 性能
+## 2. 咱们的改进
 
-2026-08-14 交卷复测（GPU idle，`python3 test_perf.py`）：`B=4, Cin=32, Cout=64, modes=16×16`，warmup=10，iters=100，CPU→CPU。
+### 2.1 必选算子：从「搬谱回 CPU」改成设备上的 fused 路径
 
-| 分辨率 | forward ms | peak MB |
-|---|---:|---:|
-| 64×64 | **3.797** | 225.3 |
-| 128×128 | **8.037** | 253.3 |
-| 256×256 | **29.295** | 353.3 |
+早期实现是：空间域在卡上，FFT 回 Host，整谱在 CPU 做复数乘，再搬回去。小分辨率上，**来回拷显存**比乘法本身还贵。
 
-完整报告：[`results/run_logs/性能检测报告_2026-08-14.md`](results/run_logs/性能检测报告_2026-08-14.md)。  
-历史冻结板（2026-07-31）为 3.811 / 8.054 / 29.560 ms，与本次噪声内一致（本次略快）。相对官网 CPU 参考约 **19.5× / 11.1× / 10.1×**。
+现在正式热路径：
 
-### 2.4 扩展
+1. **suFFT 在设备上做 R2C**，频谱留在卡上。
+2. **自研 SUPA kernel** 做官网同款双角复数乘（只乘保留的低频 modes，不是整谱）。
+3. **设备上 C2R** 变回空间域。源码：`spectral_conv/spectral_conv_ext.su`、`spectral_conv_ext.cpp`、`spectral_conv_ops.py`。
 
-| 项目 | 结果 |
-|---|---|
-| Backward | 3/3 PASS，worst relative error `6.253e-8` |
-| SpectralConv3d | 2/2 PASS（官网四角），worst relative error `≈1.19e-7` |
-| irregular shapes | 9/9 PASS，worst relative error `3.202e-7` |
-| suFFT 独立验证 | 有独立 accuracy / perf 脚本 |
-| SOL-style proxy | warmup=10、iters=50、trials=3；只作为队内 proxy，不冒充官方理论 SOL |
+配套工程改动：
 
-## 3. 进阶 FNO-Navier-Stokes
+- **权重与谱缓存**：同一组 modes / 权重不每步重新 H2D。
+- **输出 buffer 复用**：fused 路径的频谱缓冲和 Host staging 反复用，少 malloc。
+- **按分辨率选路径**：很小的图走「CPU FFT + 设备乘」（C2R 墙更明显）；大图走 fused。评测三档 64/128/256 都走正式脚本 `test_perf.py`。
 
-### 3.1 模型
+正确性始终对官网同款 PyTorch 参考（双角截断）。最差相对误差 **2.170×10⁻⁷**，门槛 1×10⁻⁴。另外补了反向、三维四角、不规则尺寸，不改变必选题口径。
 
-- 4 层 Fourier Layer
-- width：32
-- modes：16×16
-- 输入：10 个 64×64 涡度时间步
-- 输出：1 个 64×64 涡度时间步
-- 每层复用必选 SpectralConv Extension
-- 主报 checkpoint：`fno_ns/checkpoints/fno_ns_public_demo.pt`（约 17 MB）
-- 旁注 checkpoint：`fno_ns/checkpoints/fno_ns_demo.pt`（自建 v2，非公开分）
+性能对比对象是本机跑出来的**官网 CPU 参考脚本**（不是自己写的慢实现）：74.142 / 89.000 / 295.983 ms → **3.797 / 8.037 / 29.295 ms**。
 
-### 3.2 数据披露
+### 2.2 进阶 FNO：复用该算子，并在官方数据上压 L2
 
-**正式主报使用公开 NS64**（`navier_stokes_v1e-3_N1200_T20.pt`，1000/128）。自建 `generated_ns_like_v2` 仅为工程对照，见 `results/data_disclosure.md` 附录。
+- 网络是 **4 层** Fourier Layer（width=32，modes=16，64×64），推理调用上面同一套频谱卷积，不是另写一套 PyTorch FFT。
+- 输出用 **残差头**：网络预测相对上一帧的增量，再加回最后一帧输入。公开 NS 帧间变化大，这样比直接回归整场稳。
+- **没有改官方 `.pt` 文件**。划分固定 1000/128、种子 `20260722`。刚接到这份数据时相对 L2 是 **0.041835**；后来在同一文件上做了：周期平移增广、频域加权损失、训练后期主要更新 spectral 权重，并用 H⁻¹ 型损失压高频误差。正式成绩 **0.035012**。
 
-### 3.3 训练量与 L2（公开 NS64 为主）
-
-**正式公开集成绩（2026-08-14 复评 · spec_ref_r2 · v10）**
-
-| 项 | 值 |
-|---|---|
-| 数据 | `fno_ns/data/navier_stokes_v1e-3_N1200_T20.pt`（HF 公开 NS64） |
-| 划分 | n_train=1000 / n_test=128，seed=`20260722` |
-| 训练 | … → dualview_r2（v9）→ Spectral-Refiner lite → **spec_ref_r2** |
-| test relative L2 | **0.035011906176805496**（本次 clean 复评与 meta 一致） |
-| checkpoint | `fno_ns/checkpoints/fno_ns_public_demo.pt` |
-
-对照（勿与公开分混报）：
-
-| 场景 | relative L2 | 说明 |
-|---|---:|---|
-| 公开集主报（spec_ref_r2） | **0.035012** | 正式公开成绩 · **v10** |
-| dualview_r2（历史 v9） | 0.035115 | 上一正式版本 |
-| freeze_r9（历史 v8） | 0.035302 | 上一正式版本 |
-| sched_samp_r5 | 0.035725 | 历史主报 · v7 |
-| sched_samp_r3 | 0.035855 | 历史主报 |
-| sched_samp_r2 | 0.036092 | 历史主报 |
-| multistep_probe | 0.036576 | 历史主报 |
-| sq3b_freeze | 0.037520 | 历史主报 |
-| boostC / boostA | 0.037820 / 0.039612 | 轨迹中间点 |
-| 公开集 continue 基线 | 0.041835 | 历史中间点 |
-| continue3 零样本→公开集 | 0.411508 | 未重训，域偏移 |
-| 自建 v2 continue3（1000/128） | 0.005144 | 工程对照，非公开集 |
-
-- 自建 v2 历史：150 epoch / 14400 step（768 划分）等见 `data_disclosure.md` 与归档包
-- Spectral idle **3.797 / 8.037 / 29.295 ms**（2026-08-14 复测；与 NS 数据无关）
-- 可视化：`results/figures/fno_ns_pred_vs_gt_2026-08-02.png` + sample_strip（对齐 public demo；字段见 `summary.fno_ns.visualization`）
-
-公开集 checkpoint 可复评；一键链：`scripts/run_public_ns64_autochain.sh`。
-
-### 3.4 FNO chain 状态
-
-2026-07-26 正式门禁（R7 host-seeded D2D 物化 + promote 后 ckpt）：
-
-- checkpoint chain vs CPU：相对误差 **4.758e-5**，通过 `1e-4`
-- 随机模型：**6.580e-5**，通过
-- 历史诊断：修复前曾出现 rel=`0.01655` / 未过门禁的 16.112 ms，**不得**作为正式性能
-
-脚本：`fno_ns/test_chain_cpu_supa_consistency.py`。
-
-### 3.5 FNO batch=16 性能
-
-2026-08-03 协议合规复测（freeze_r9 ckpt）：公开 NS64（1000/128）+ `fno_ns_public_demo.pt`；BIREN 单卡、64×64、batch=16、warmup=10、iters=50；chain 门禁 B=4 rel≈`8.80e-5` PASS；B=16 旁注 rel≈`9.55e-5` PASS。
-
-| scope | grid_points/s | samples/s | ms/sample | ms/batch | peak MB |
-|---|---:|---:|---:|---:|---:|
-| pure forward | 1,600,295.313 | 390.697 | 2.559528 | 40.952 | 202.2 |
-| with DataLoader | 1,439,739.645 | 351.499 | 2.844959 | 45.519 | 202.2 |
-
-脚本：`fno_ns/benchmark_fno_batch16.py`（默认 public）；日志：`results/run_logs/fno_batch16_benchmark_public_ns64_2026-08-03.md`。历史 v2 旁注可用 `--legacy-v2`。grid point 按单通道 `H×W` 计算。
-
-### 3.5b 训练吞吐（加分项）
-
-同量纲 `grid_points/s`，**明确包含** forward + relative-L2 loss + backward + Adam step。路径与提交 checkpoint 一致：CPU / `use_supa=False`。
-
-| metric | value |
-|---|---:|
-| grid_points/s | 34,711.585 |
-| samples/s | 8.475 |
-| ms/sample | 118.001 |
-| ms/batch (step) | 944.008 |
-
-脚本：`fno_ns/benchmark_train_throughput.py`；日志：`results/run_logs/fno_train_throughput_2026-07-25.md`。这不是推理 batch=16 主表。
-
-### 3.6 可视化
-
-`fno_ns/visualize.py` 生成：
-
-1. 主图：Input / GT / Pred / `|Error|` / 相对误差图（Pred/GT 共用对称色标）
-2. 多样本条带：best / median / worst（按 sample relative L2）
-
-图注含 `data`、`sample`、`target_t`、`sample_rel_L2`。实体写入 `results/figures/` 并同步 `demo/media/`。
-
-## 4. Agent / Skill
-
-- `development_log.md`：≥34 段编号记录（精品抽查 24–34），覆盖 kernel、性能、模型/超参、数据、可视化和 BIREN 平台适配
-- `skill.md`：SpectralConv + FNO 工作流及性能方法论
-- `skills/spectral_chain_optimization.md`：R3–R7 技术沉淀
-- `skills/fno_eval_protocol.md`：batch16 / chain 门禁 / 数据披露 / 训练吞吐
-- `skills/sol_gap_analysis.md` + `spectral_conv/bench_sol_proxy.py`：本地 SOL-style 差距分析（非官方 SOL）
-- 自动调优：`spectral_conv/tune.py` 已落地，`tune_results.json` 可跨进程加载
-
-## 5. 已知限制
-
-- FNO **精度主报**已切换公开 NS64；自建 v2 数字仅旁注，禁止混报。
-- FNO chain 的 SUPA-resident 输入需 correctness fallback；未通过一致性门禁的快速结果不作为正式性能。
-- SDK 仅导出 suFFT 1D plan，2D 由两次 1D + transpose 拼接；没有可用的 `sufftBuildPlan2d/Many` ABI；Spectral ms 已冻结（见 OPT_MASTER_PLAN）。
-- SpectralConv3d 是算子扩展，不是完整 3D FNO。
-- 单卡 GPU 禁止 f/n 并发测试；正式 perf 禁止与重训争用。
+权重：`fno_ns/checkpoints/fno_ns_public_demo.pt`。流场图由 `fno_ns/render_official_demo.py` 在这份官方测试集上前向后，交给 `visualize.py` 画出。
