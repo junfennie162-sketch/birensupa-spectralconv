@@ -31,6 +31,7 @@ fno_ns/results/
 
 # 完整交卷 tar（2.9G）与早期官网包
 *.tar.gz
+!contest_submit/*.tar.gz
 results/archives/**/*.tar.gz
 results/archives/legacy_spectral_conv_combo/
 results/PPT_CLOUD*.zip
