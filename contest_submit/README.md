@@ -14,4 +14,4 @@ GitHub 单文件上限 100MB。本目录是**可直接下载**的交卷压缩包
 
 解压后根上 `README.md` / `skill.md` / `results.md` / `development_log.md` **保持英文文件名**（官网按此查找）。
 
-中文包建议阅读顺序：根 `README.md`（项目介绍）→ `必选算子-卷积/README.md`（怎么编译、怎么跑）→ `进阶模型-FNO/README.md`（模型演示）。
+中文包建议阅读顺序：根 `README.md` → `必选算子-卷积/README.md` → `results.md`（官方集 vs 自建集）→ `测试结果/运行日志/README.md`（每份 log 是什么）→ `交互日志/`（原始 Agent 对话）。
