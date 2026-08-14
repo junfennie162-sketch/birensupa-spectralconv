@@ -1,0 +1,13 @@
+[2026-07-30T17:07:43Z] wait_pid 672291
+[2026-07-30T18:26:53Z] pid 672291 gone
+[2026-07-30T18:26:54Z] demo_bar=0.005268205190077424
+[2026-07-30T18:26:54Z] freeze3 meta baseline=0.005268205190077424 best=0.0052545631770044565 improved=True
+[2026-07-30T18:26:54Z] PROMOTED freeze3 L2=0.0052545631770044565 from /workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_official_polish_candidate.pt
+[2026-07-30T18:26:54Z] START /usr/bin/python3 -u train_global_continue.py --epochs 80 --lr 1e-5 --batch-size 16 --init /workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_demo.pt -> /workspace/ai4s-f/submission/results/run_logs/train_global_continue2_80ep_2026-07-31.log
+[2026-07-30T20:12:02Z] END train_global_continue2_80ep_2026-07-31.log rc=0
+[2026-07-30T20:12:03Z] PROMOTED continue2 L2=0.005178304389119148 from /workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_global_continue_best.pt
+[2026-07-30T20:12:03Z] START /usr/bin/python3 -u train_width_retrain.py --epochs 120 --lr 2e-4 --width 48 --modes 16 --batch-size 16 -> /workspace/ai4s-f/submission/results/run_logs/train_width48_120ep_2026-07-31.log
+[2026-07-30T20:59:06Z] ABORT train_width48_120ep_2026-07-31.log ep=30 best=0.013155560358427465 >> demo=0.005178304389119148
+[2026-07-30T20:59:06Z] START /usr/bin/python3 -u train_modes_retrain.py --epochs 120 --lr 2e-4 --modes 20 --width 32 --batch-size 16 -> /workspace/ai4s-f/submission/results/run_logs/train_modes20_120ep_2026-07-31.log
+[2026-07-30T21:43:10Z] ABORT train_modes20_120ep_2026-07-31.log ep=30 best=0.014703847118653357 >> demo=0.005178304389119148
+[2026-07-30T21:43:10Z] FNO squeeze chain finished demo_bar=0.005178304389119148

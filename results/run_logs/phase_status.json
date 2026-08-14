@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-08-02T06:14:25Z",
+  "current_phase": "submit_gate",
+  "notes": "submit_gate done. public L2=0.035725 (sched_samp_r5); ROUND7 NO_SIGNAL; Spectral idle frozen.",
+  "phases": {
+    "skeleton": {
+      "title": "仓库骨架与选题对齐",
+      "status": "done",
+      "assets": [
+        "AGENTS.md",
+        "CONTEXT.md",
+        "submission/README.md",
+        "submission/development_log.md",
+        "submission/results.md",
+        "submission/results/summary.json",
+        "submission/results/phase_status.json"
+      ],
+      "checks": [
+        "development_log 至少有第 1 段有效交互"
+      ],
+      "completed_at": "2026-07-21"
+    },
+    "spectral_accuracy": {
+      "title": "必选 SpectralConv 正确性",
+      "status": "done",
+      "assets": [
+        "submission/spectral_conv/build.sh",
+        "submission/spectral_conv/test_accuracy.py",
+        "submission/results/run_logs/",
+        "submission/results/summary.json",
+        "submission/results.md",
+        "submission/development_log.md"
+      ],
+      "checks": [
+        "相对误差 <= 1e-4",
+        "summary.json.spectral_conv.rel_error 已写入",
+        "results.md 正确性章节已回填",
+        "development_log 新增 kernel 类交互段"
+      ],
+      "completed_at": "2026-07-21"
+    },
+    "spectral_perf": {
+      "title": "必选 SpectralConv 性能",
+      "status": "done",
+      "assets": [
+        "submission/spectral_conv/test_perf.py",
+        "submission/results/run_logs/",
+        "submission/results/summary.json",
+        "submission/results.md"
+      ],
+      "checks": [
+        "results.md 性能表 64/128/256 有数字或明确 SKIP 原因",
+        "summary.json.spectral_conv.perf 已写入"
+      ],
+      "completed_at": "2026-07-21"
+    },
+    "fno_forward": {
+      "title": "进阶 FNO-NS 前向与可视化",
+      "status": "done",
+      "assets": [
+        "submission/fno_ns/model.py",
+        "submission/fno_ns/test_forward.py",
+        "submission/fno_ns/visualize.py",
+        "submission/results/figures/",
+        "submission/results/run_logs/",
+        "submission/results/summary.json",
+        "submission/results.md",
+        "submission/development_log.md"
+      ],
+      "checks": [
+        "Fourier Layer >= 4",
+        "相对 L2 已报告",
+        "figures/ 有预测 vs 真值图",
+        "development_log 含模型/超参类交互段"
+      ],
+      "completed_at": "2026-07-21"
+    },
+    "demo": {
+      "title": "演示与 SCP 展示材料",
+      "status": "done",
+      "assets": [
+        "submission/demo/scp_description.md",
+        "submission/demo/media/",
+        "submission/skills/",
+        "submission/scripts/run_demo.sh"
+      ],
+      "checks": [
+        "demo/media 有运行截图或流场图副本",
+        "scp_description 与实测一致"
+      ],
+      "completed_at": "2026-07-21"
+    },
+    "submit_gate": {
+      "title": "提交门禁",
+      "status": "done",
+      "assets": [
+        "submission/README.md",
+        "submission/results.md",
+        "submission/development_log.md",
+        "submission/results/summary.json",
+        "submission/results/phase_status.json"
+      ],
+      "checks": [
+        "development_log >= 5 段且覆盖 >= 3 类",
+        "spectral_accuracy = done",
+        "fno_forward = done 或 README 写明仅交必选及原因",
+        "禁止仅原生 PyTorch 作为正式实现"
+      ],
+      "completed_at": "2026-07-21"
+    }
+  }
+}

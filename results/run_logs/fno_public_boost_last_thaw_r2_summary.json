@@ -1,0 +1,20 @@
+{
+  "task": "fno_public_last_thaw",
+  "tag": "last_thaw_r2",
+  "baseline_test_l2": 0.035160028375685215,
+  "best_test_l2": 0.035116022918373346,
+  "gate": 0.03512327123209834,
+  "beat_gate": true,
+  "improved_vs_baseline": true,
+  "delta_vs_baseline": 4.400545731186867e-05,
+  "epochs_ran": 4,
+  "thaw_k": 2,
+  "lr": 1.5e-06,
+  "spectral_lr": 8e-07,
+  "lambda_delta": 0.5,
+  "init_from": "checkpoints/fno_ns_public_dualview_r1_best.pt",
+  "elapsed_sec": 323.5,
+  "checkpoint": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_public_last_thaw_r2_best.pt",
+  "log": "/workspace/ai4s-f/submission/results/run_logs/fno_public_last_thaw_r2_20260806_163702.log",
+  "promote": false
+}

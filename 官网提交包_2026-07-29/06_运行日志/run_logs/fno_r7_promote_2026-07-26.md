@@ -1,0 +1,2 @@
+{'measured_at': '2026-07-26T08:49:28Z', 'data_source': 'generated_ns_like_v2', 'data_disclosure': 'self-generated NS-like v2; not public NS64', 'baseline_rel_l2': 0.00951623497530818, 'candidate_rel_l2_torch': 0.008768199913902208, 'improved': True, 'delta': 0.0007480350614059716, 'epochs_added': 40, 'lr': 5e-05, 'parameters': 2106145, 'history_len': 150, 'candidate_path': '/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_r7_candidate.pt'}
+{'promoted': True, 'backup': '/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_demo.pt.pre_r7_backup'}

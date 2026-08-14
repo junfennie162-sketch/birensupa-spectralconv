@@ -1,0 +1,18 @@
+{
+  "task": "fno_public_sched_sampling",
+  "tag": "sched_hybrid_r11",
+  "baseline_test_l2": 0.03525179158896208,
+  "best_test_l2": 0.03525179158896208,
+  "gate": 0.03519179158896208,
+  "beat_gate": false,
+  "improved_vs_baseline": false,
+  "delta_vs_baseline": 0.0,
+  "epochs_ran": 2,
+  "p_ar_max": 0.35,
+  "soft_alpha_max": 0.35,
+  "lr": 1.2e-06,
+  "elapsed_sec": 730.1,
+  "checkpoint": null,
+  "log": "/workspace/ai4s-f/submission/results/run_logs/fno_public_sched_hybrid_r11_20260804_062453.log",
+  "promote": false
+}

@@ -1,0 +1,13 @@
+{
+  "task": "fno_public_h1_probe",
+  "tag": "h1_r1",
+  "baseline_test_l2": 0.03511497611179948,
+  "best_test_l2": 0.03511497611179948,
+  "gate": 0.03501497611179948,
+  "beat_gate": false,
+  "grad_weight": 0.25,
+  "epochs_ran": 4,
+  "elapsed_sec": 290.0,
+  "checkpoint": null,
+  "promote": false
+}

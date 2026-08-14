@@ -1,0 +1,232 @@
+#include <supa.h>
+#include <supa_device.h>
+
+// Complex spectral multiply (FNO corner modes):
+//   out[b, o, m1, m2] = sum_i x[b, i, m1, m2] * w[i, o, m1, m2]
+// Tensors are float2 interleaved as [..., 2] with layout
+//   x: [B, Cin, M1, M2, 2]
+//   w: [Cin, Cout, M1, M2, 2]
+//   y: [B, Cout, M1, M2, 2]
+//
+// R7: float2 loads + unrolled Cin accumulation; tunable block size.
+
+#ifndef SPECTRAL_MUL_BLOCK
+#define SPECTRAL_MUL_BLOCK 256
+#endif
+
+__global__ void spectral_mul_kernel(int batch_size, int channels_in, int channels_out,
+                                    int modes1, int modes2,
+                                    const float *__restrict__ x_freq,
+                                    const float *__restrict__ weights,
+                                    float *__restrict__ y_freq) {
+    const int total = batch_size * channels_out * modes1 * modes2;
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= total) {
+        return;
+    }
+
+    const int modes_plane = modes1 * modes2;
+    const int out_plane = channels_out * modes_plane;
+    const int batch_index = index / out_plane;
+    const int rem = index - batch_index * out_plane;
+    const int channel_out = rem / modes_plane;
+    const int mode_index = rem - channel_out * modes_plane;
+
+    float acc_real = 0.0f;
+    float acc_imag = 0.0f;
+
+    const int x_batch_stride = channels_in * modes_plane * 2;
+    const int w_in_stride = channels_out * modes_plane * 2;
+    const int w_out_stride = modes_plane * 2;
+    const int x_batch_base = batch_index * x_batch_stride + mode_index * 2;
+    const int w_out_base = channel_out * w_out_stride + mode_index * 2;
+
+    // Contiguous interleaved pairs → float2 vector loads when aligned.
+    const float2 *x2 = reinterpret_cast<const float2 *>(x_freq);
+    const float2 *w2 = reinterpret_cast<const float2 *>(weights);
+
+#pragma unroll 4
+    for (int channel_in = 0; channel_in < channels_in; ++channel_in) {
+        const int x_pair =
+            (x_batch_base + channel_in * modes_plane * 2) >> 1;
+        const int w_pair =
+            (channel_in * w_in_stride + w_out_base) >> 1;
+        const float2 xv = x2[x_pair];
+        const float2 wv = w2[w_pair];
+        acc_real += xv.x * wv.x - xv.y * wv.y;
+        acc_imag += xv.x * wv.y + xv.y * wv.x;
+    }
+
+    const int y_base =
+        batch_index * channels_out * modes_plane * 2 + channel_out * modes_plane * 2 +
+        mode_index * 2;
+    y_freq[y_base + 0] = acc_real;
+    y_freq[y_base + 1] = acc_imag;
+}
+
+// Write mul result into a corner of full spectrum [B, Cout, H, Wf, 2].
+// corner=0 → rows [0, M1); corner=1 → rows [H-M1, H). Cols always [0, M2).
+__global__ void spectral_mul_scatter_kernel(
+    int batch_size, int channels_in, int channels_out, int modes1, int modes2,
+    int height, int width_freq, int corner,
+    const float *__restrict__ x_freq, const float *__restrict__ weights,
+    float *__restrict__ out_freq) {
+    const int total = batch_size * channels_out * modes1 * modes2;
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= total) {
+        return;
+    }
+
+    const int modes_plane = modes1 * modes2;
+    const int out_plane = channels_out * modes_plane;
+    const int batch_index = index / out_plane;
+    const int rem = index - batch_index * out_plane;
+    const int channel_out = rem / modes_plane;
+    const int mode_index = rem - channel_out * modes_plane;
+    const int m1 = mode_index / modes2;
+    const int m2 = mode_index - m1 * modes2;
+    const int h = (corner == 0) ? m1 : (height - modes1 + m1);
+
+    float acc_real = 0.0f;
+    float acc_imag = 0.0f;
+
+    const int x_batch_stride = channels_in * modes_plane * 2;
+    const int w_in_stride = channels_out * modes_plane * 2;
+    const int w_out_stride = modes_plane * 2;
+    const int x_batch_base = batch_index * x_batch_stride + mode_index * 2;
+    const int w_out_base = channel_out * w_out_stride + mode_index * 2;
+
+    const float2 *x2 = reinterpret_cast<const float2 *>(x_freq);
+    const float2 *w2 = reinterpret_cast<const float2 *>(weights);
+
+#pragma unroll 4
+    for (int channel_in = 0; channel_in < channels_in; ++channel_in) {
+        const int x_pair = (x_batch_base + channel_in * modes_plane * 2) >> 1;
+        const int w_pair = (channel_in * w_in_stride + w_out_base) >> 1;
+        const float2 xv = x2[x_pair];
+        const float2 wv = w2[w_pair];
+        acc_real += xv.x * wv.x - xv.y * wv.y;
+        acc_imag += xv.x * wv.y + xv.y * wv.x;
+    }
+
+    // Contiguous layout [B, Cout, H, Wf, 2]
+    const int out_base =
+        ((batch_index * channels_out + channel_out) * height + h) * width_freq * 2 +
+        m2 * 2;
+    out_freq[out_base + 0] = acc_real;
+    out_freq[out_base + 1] = acc_imag;
+}
+
+// R11: read corner modes from full spectrum [B, Cin, H, Wf, 2] (strided),
+// multiply by packed weights, write into out_freq corners — no Python
+// `.contiguous()` corner copies.
+__global__ void spectral_mul_gather_scatter_kernel(
+    int batch_size, int channels_in, int channels_out, int modes1, int modes2,
+    int height, int width_freq, int corner,
+    const float *__restrict__ x_full, const float *__restrict__ weights,
+    float *__restrict__ out_freq) {
+    const int total = batch_size * channels_out * modes1 * modes2;
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= total) {
+        return;
+    }
+
+    const int modes_plane = modes1 * modes2;
+    const int out_plane = channels_out * modes_plane;
+    const int batch_index = index / out_plane;
+    const int rem = index - batch_index * out_plane;
+    const int channel_out = rem / modes_plane;
+    const int mode_index = rem - channel_out * modes_plane;
+    const int m1 = mode_index / modes2;
+    const int m2 = mode_index - m1 * modes2;
+    const int h = (corner == 0) ? m1 : (height - modes1 + m1);
+
+    float acc_real = 0.0f;
+    float acc_imag = 0.0f;
+
+    const int w_in_stride = channels_out * modes_plane * 2;
+    const int w_out_stride = modes_plane * 2;
+    const int w_out_base = channel_out * w_out_stride + mode_index * 2;
+    // x_full [B, Cin, H, Wf, 2]
+    const int x_plane = height * width_freq * 2;
+    const int x_batch_base = batch_index * channels_in * x_plane;
+
+    const float2 *w2 = reinterpret_cast<const float2 *>(weights);
+
+#pragma unroll 4
+    for (int channel_in = 0; channel_in < channels_in; ++channel_in) {
+        const int x_base =
+            x_batch_base + channel_in * x_plane + h * width_freq * 2 + m2 * 2;
+        const float xr = x_full[x_base + 0];
+        const float xi = x_full[x_base + 1];
+        const int w_pair = (channel_in * w_in_stride + w_out_base) >> 1;
+        const float2 wv = w2[w_pair];
+        acc_real += xr * wv.x - xi * wv.y;
+        acc_imag += xr * wv.y + xi * wv.x;
+    }
+
+    const int out_base =
+        ((batch_index * channels_out + channel_out) * height + h) * width_freq * 2 +
+        m2 * 2;
+    out_freq[out_base + 0] = acc_real;
+    out_freq[out_base + 1] = acc_imag;
+}
+
+extern "C" suError_t launch_spectral_mul(const float *d_x_freq, const float *d_weights,
+                                         float *d_y_freq, int batch_size, int channels_in,
+                                         int channels_out, int modes1, int modes2,
+                                         suStream_t stream) {
+    if (batch_size <= 0 || channels_in <= 0 || channels_out <= 0 || modes1 <= 0 ||
+        modes2 <= 0 || d_x_freq == nullptr || d_weights == nullptr || d_y_freq == nullptr) {
+        return suErrorInvalidValue;
+    }
+
+    const int total = batch_size * channels_out * modes1 * modes2;
+    dim3 block(SPECTRAL_MUL_BLOCK);
+    dim3 grid((static_cast<unsigned>(total) + block.x - 1) / block.x);
+    spectral_mul_kernel<<<grid, block, 0, stream>>>(
+        batch_size, channels_in, channels_out, modes1, modes2, d_x_freq, d_weights,
+        d_y_freq);
+    return suGetLastError();
+}
+
+extern "C" suError_t launch_spectral_mul_scatter(
+    const float *d_x_freq, const float *d_weights, float *d_out_freq, int batch_size,
+    int channels_in, int channels_out, int modes1, int modes2, int height,
+    int width_freq, int corner, suStream_t stream) {
+    if (batch_size <= 0 || channels_in <= 0 || channels_out <= 0 || modes1 <= 0 ||
+        modes2 <= 0 || height < modes1 || width_freq < modes2 ||
+        (corner != 0 && corner != 1) || d_x_freq == nullptr || d_weights == nullptr ||
+        d_out_freq == nullptr) {
+        return suErrorInvalidValue;
+    }
+
+    const int total = batch_size * channels_out * modes1 * modes2;
+    dim3 block(SPECTRAL_MUL_BLOCK);
+    dim3 grid((static_cast<unsigned>(total) + block.x - 1) / block.x);
+    spectral_mul_scatter_kernel<<<grid, block, 0, stream>>>(
+        batch_size, channels_in, channels_out, modes1, modes2, height, width_freq,
+        corner, d_x_freq, d_weights, d_out_freq);
+    return suGetLastError();
+}
+
+extern "C" suError_t launch_spectral_mul_gather_scatter(
+    const float *d_x_full, const float *d_weights, float *d_out_freq, int batch_size,
+    int channels_in, int channels_out, int modes1, int modes2, int height,
+    int width_freq, int corner, suStream_t stream) {
+    if (batch_size <= 0 || channels_in <= 0 || channels_out <= 0 || modes1 <= 0 ||
+        modes2 <= 0 || height < modes1 || width_freq < modes2 ||
+        (corner != 0 && corner != 1) || d_x_full == nullptr || d_weights == nullptr ||
+        d_out_freq == nullptr) {
+        return suErrorInvalidValue;
+    }
+
+    const int total = batch_size * channels_out * modes1 * modes2;
+    dim3 block(SPECTRAL_MUL_BLOCK);
+    dim3 grid((static_cast<unsigned>(total) + block.x - 1) / block.x);
+    spectral_mul_gather_scatter_kernel<<<grid, block, 0, stream>>>(
+        batch_size, channels_in, channels_out, modes1, modes2, height, width_freq,
+        corner, d_x_full, d_weights, d_out_freq);
+    return suGetLastError();
+}
+

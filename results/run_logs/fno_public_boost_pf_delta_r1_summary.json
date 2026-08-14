@@ -1,0 +1,22 @@
+{
+  "task": "fno_public_pf_delta_hybrid",
+  "tag": "pf_delta_r1",
+  "baseline_test_l2": 0.035203494131565094,
+  "best_test_l2": 0.035191548988223076,
+  "gate": 0.03512327123209834,
+  "beat_gate": false,
+  "improved_vs_baseline": true,
+  "delta_vs_baseline": 1.1945143342018127e-05,
+  "epochs_ran": 3,
+  "lambda_pf": 0.75,
+  "lambda_delta": 0.35,
+  "hf_weight": 0.15,
+  "lr": 4e-06,
+  "freeze_spectral": true,
+  "init_from": "checkpoints/fno_ns_public_soup_near3_best.pt",
+  "elapsed_sec": 410.4,
+  "checkpoint": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_public_pf_delta_r1_best.pt",
+  "log": "/workspace/ai4s-f/submission/results/run_logs/fno_public_pf_delta_r1_20260806_154706.log",
+  "promote": false,
+  "note": "PF+Δ hybrid; no auto-promote; human confirm if beat_gate"
+}

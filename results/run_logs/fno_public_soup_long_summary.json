@@ -1,0 +1,55 @@
+{
+  "task": "fno_public_soup_r8",
+  "baseline": 0.03522327123209834,
+  "gate": 0.03512327123209834,
+  "singles": [
+    {
+      "path": "fno_ns_public_demo.pt",
+      "test_l2": 0.03522327123209834,
+      "residual": true,
+      "meta_l2": 0.03522327123209834,
+      "tag": "freeze_r11"
+    },
+    {
+      "path": "fno_ns_public_pf_delta_r1_best.pt",
+      "test_l2": 0.035191548988223076,
+      "residual": true,
+      "meta_l2": 0.035191548988223076,
+      "tag": "pf_delta_r1"
+    },
+    {
+      "path": "fno_ns_public_last_thaw_r1_best.pt",
+      "test_l2": 0.03516507986932993,
+      "residual": true,
+      "meta_l2": 0.03516507986932993,
+      "tag": "last_thaw_r1"
+    },
+    {
+      "path": "fno_ns_public_dualview_r1_best.pt",
+      "test_l2": 0.035160028375685215,
+      "residual": true,
+      "meta_l2": 0.035160028375685215,
+      "tag": "dualview_r1"
+    }
+  ],
+  "soups": [
+    {
+      "name": "uniform_all",
+      "test_l2": 0.035180571023374796
+    },
+    {
+      "name": "uniform_last2",
+      "test_l2": 0.035161551553756
+    },
+    {
+      "name": "uniform_first_last",
+      "test_l2": 0.03518789168447256
+    }
+  ],
+  "best_soup": "uniform_last2",
+  "best_test_l2": 0.035161551553756,
+  "beat_gate": false,
+  "checkpoint": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_public_soup_long_best.pt",
+  "note": "weight average only; not TTA",
+  "measured_at": "2026-08-06T08:35:32Z"
+}

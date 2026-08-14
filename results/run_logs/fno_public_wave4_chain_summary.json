@@ -1,0 +1,57 @@
+{
+  "task": "fno_public_wave4_chain",
+  "demo_l2": 0.03511497611179948,
+  "gate": 0.03501497611179948,
+  "init_sidecar": "spec_ref_r1",
+  "best_sidecar": {
+    "l2": 0.035011906176805496,
+    "ckpt": "fno_ns_public_spec_ref_r2_best.pt",
+    "tag": "spec_ref_r2"
+  },
+  "top8": [
+    {
+      "l2": 0.035011906176805496,
+      "ckpt": "fno_ns_public_spec_ref_r2_best.pt",
+      "tag": "spec_ref_r2"
+    },
+    {
+      "l2": 0.035026549361646175,
+      "ckpt": "fno_ns_public_spec_ref_r1_best.pt",
+      "tag": "spec_ref_r1"
+    },
+    {
+      "l2": 0.03503835340961814,
+      "ckpt": "fno_ns_public_soup_wave4_best.pt",
+      "tag": "soup_uniform_all"
+    },
+    {
+      "l2": 0.03506034938618541,
+      "ckpt": "fno_ns_public_soup_lit_best.pt",
+      "tag": "soup_uniform_last2"
+    },
+    {
+      "l2": 0.03511497611179948,
+      "ckpt": "fno_ns_public_demo.pt",
+      "tag": "dualview_r2"
+    },
+    {
+      "l2": 0.03511497611179948,
+      "ckpt": "fno_ns_public_dualview_r2_best.pt",
+      "tag": "dualview_r2"
+    },
+    {
+      "l2": 0.03511497611179948,
+      "ckpt": "fno_ns_public_ns64_best.pt",
+      "tag": "dualview_r2"
+    },
+    {
+      "l2": 0.035116022918373346,
+      "ckpt": "fno_ns_public_last_thaw_r2_best.pt",
+      "tag": "last_thaw_r2"
+    }
+  ],
+  "beat_gate": true,
+  "gap_to_gate": -3.0699349939863896e-06,
+  "promote": false,
+  "log": "/workspace/ai4s/submission/results/run_logs/fno_public_wave4_chain_20260811_095717.log"
+}

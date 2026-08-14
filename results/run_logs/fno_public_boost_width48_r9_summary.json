@@ -1,0 +1,20 @@
+{
+  "task": "fno_public_ns64_boost",
+  "tag": "width48_r9",
+  "data_source": "file:navier_stokes_v1e-3_N1200_T20.pt",
+  "baseline_test_l2": 0.2098885141313076,
+  "best_test_l2": 0.036134546622633934,
+  "residual": true,
+  "augment": true,
+  "hf_weight": 0.35,
+  "freeze_spectral": false,
+  "frozen_spectral_params": 0,
+  "epochs": 100,
+  "lr": 0.0002,
+  "weight_decay": 0.0001,
+  "elapsed_sec": 10526.1,
+  "checkpoint": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_public_width48_r9_best.pt",
+  "improved": true,
+  "delta_l2": 0.17375396750867367,
+  "log": "/workspace/ai4s-f/submission/results/run_logs/fno_public_boost_20260803_040429.log"
+}

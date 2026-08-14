@@ -10,7 +10,10 @@ Buffer reuse: recycle fused spectrum + host staging tensors (TurboFNO traffic id
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 import weakref
+from pathlib import Path
 
 import torch
 import torch.nn as nn
@@ -26,6 +29,12 @@ _WEIGHT_CACHE_MAX = 64
 _OUT_FREQ_CACHE: dict[tuple, torch.Tensor] = {}
 _HOST_OUT_CACHE: dict[tuple, torch.Tensor] = {}
 _OUT_FREQ_CPU_CACHE: dict[tuple, torch.Tensor] = {}
+# Host-origin SUPA buffers for suFFT-safe materialization of device-produced
+# activations (R7): allocate via CPU→SUPA once, then D2D copy_ before rfft.
+# Faster than R6 pinned D2H+H2D; same correctness (probe_sufft_provenance_r7).
+_SAFE_INPUT_CACHE: dict[tuple, torch.Tensor] = {}
+# Legacy name kept cleared for callers that still mention pinned cache.
+_PINNED_INPUT_CACHE = _SAFE_INPUT_CACHE
 _BUFFER_CACHE_MAX = 4
 # Per-corner output buffer reuse: `spectral_mul` allocates a fresh
 # (B, Cout, M1, M2, 2) SUPA tensor each call; for hot loops that's
@@ -50,6 +59,28 @@ _AUTO_TUNE_DEFAULTS: dict = {
 }
 
 
+def _load_auto_tune_table() -> None:
+    tune_result_path = Path(__file__).resolve().parent / "tune_results.json"
+    if not tune_result_path.exists():
+        return
+    try:
+        payload = json.loads(tune_result_path.read_text())
+        table = payload.get("table", {})
+        for resolution, decision in table.items():
+            min_dimension = int(resolution)
+            if not isinstance(decision, dict) or "use_sufft" not in decision:
+                continue
+            _AUTO_TUNE_TABLE[min_dimension] = {
+                "use_sufft": bool(decision["use_sufft"]),
+                "buffer_max": max(1, int(decision.get("buffer_max", _BUFFER_CACHE_MAX))),
+            }
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        _AUTO_TUNE_TABLE.clear()
+
+
+_load_auto_tune_table()
+
+
 def _auto_tune_decision(min_dim: int) -> dict:
     """Return the cached decision for `min_dim` (or the default)."""
     return _AUTO_TUNE_TABLE.get(min_dim, _AUTO_TUNE_DEFAULTS)
@@ -69,17 +100,19 @@ def _out_freq_buffer(
     height: int,
     width_freq: int,
     device: torch.device,
+    *,
+    zero: bool = True,
+    modes1: int | None = None,
+    modes2: int | None = None,
 ) -> torch.Tensor:
     """Reusable SUPA-side spectrum buffer (peak-memory optimisation).
 
     Hold a single allocations worth of `(B, Cout, H, Wf, 2)` so the fused
-    path doesn't re-allocate on every call, which keeps peak memory bounded
-    and avoids `cudaMalloc` overhead. The next caller of the same key
-    overwrites it via `zero_()`. The cap is read from
-    `_buffer_cache_max()` so the auto-tuner can shrink it under memory
-    pressure without code changes.
+    path doesn't re-allocate on every call. Include ``modes1/modes2`` in the
+    key so cache hits can skip ``zero_`` safely (corners fully overwritten,
+    mid-band remains zero from allocation).
     """
-    key = (batch_size, channels_out, height, width_freq, str(device))
+    key = (batch_size, channels_out, height, width_freq, str(device), modes1, modes2)
     buf = _OUT_FREQ_CACHE.get(key)
     if buf is None:
         buf = torch.zeros(
@@ -95,7 +128,7 @@ def _out_freq_buffer(
         if len(_OUT_FREQ_CACHE) >= cap:
             _OUT_FREQ_CACHE.pop(next(iter(_OUT_FREQ_CACHE)))
         _OUT_FREQ_CACHE[key] = buf
-    else:
+    elif zero:
         buf.zero_()
     return buf
 
@@ -153,30 +186,30 @@ def spectral_mul_supa_device(
 
 
 def _weights_to_supa_cached(weights: torch.Tensor) -> torch.Tensor:
-    """Cache SUPA weights.
+    """Cache SUPA weights by object identity.
 
-    Parameters: keyed by id + weakref identity check (avoids data_ptr/id reuse bugs).
-    Other tensors: content hash.
+    Hot path keys on ``id`` + ``_version`` + storage pointer with a weakref
+    identity check. Full content hashing is reserved for cache-miss validation
+    only — hashing multi-MB complex weights on every call previously inflated
+    plain-Tensor microbenchmarks by ~15 ms and made auto-tune prefer a false
+    v1 winner.
     """
-    if isinstance(weights, nn.Parameter):
-        wid = id(weights)
-        version = int(getattr(weights, "_version", -1))
-        entry = _PARAM_CACHE.get(wid)
-        if entry is not None:
-            ref, ver, cached = entry
-            obj = ref()
-            if obj is weights and ver == version:
-                return cached
-        w_cpu = weights.detach().to("cpu", torch.complex64).contiguous()
-        cached = _complex_to_interleaved(w_cpu).to("supa").contiguous()
-        _PARAM_CACHE[wid] = (weakref.ref(weights), version, cached)
-        if len(_PARAM_CACHE) > _WEIGHT_CACHE_MAX * 2:
-            dead = [k for k, (r, _, _) in _PARAM_CACHE.items() if r() is None]
-            for k in dead:
-                _PARAM_CACHE.pop(k, None)
-        return cached
+    wid = id(weights)
+    version = int(getattr(weights, "_version", -1))
+    try:
+        storage_ptr = int(weights.untyped_storage().data_ptr())
+    except Exception:
+        storage_ptr = -1
+    entry = _PARAM_CACHE.get(wid)
+    if entry is not None:
+        ref, ver, ptr, cached = entry
+        obj = ref()
+        if obj is weights and ver == version and ptr == storage_ptr:
+            return cached
 
     w_cpu = weights.detach().to("cpu", torch.complex64).contiguous()
+    # Content digest only when identity cache misses, to dedupe equal tensors
+    # that are distinct Python objects (rare in hot loops, useful in tests).
     digest = hashlib.blake2b(w_cpu.numpy().tobytes(), digest_size=16).hexdigest()
     key = (tuple(w_cpu.shape), digest)
     cached = _WEIGHT_SUPA_CACHE.get(key)
@@ -185,6 +218,11 @@ def _weights_to_supa_cached(weights: torch.Tensor) -> torch.Tensor:
         if len(_WEIGHT_SUPA_CACHE) >= _WEIGHT_CACHE_MAX:
             _WEIGHT_SUPA_CACHE.pop(next(iter(_WEIGHT_SUPA_CACHE)))
         _WEIGHT_SUPA_CACHE[key] = cached
+    _PARAM_CACHE[wid] = (weakref.ref(weights), version, storage_ptr, cached)
+    if len(_PARAM_CACHE) > _WEIGHT_CACHE_MAX * 2:
+        dead = [k for k, (ref, _, _, _) in _PARAM_CACHE.items() if ref() is None]
+        for dead_key in dead:
+            _PARAM_CACHE.pop(dead_key, None)
     return cached
 
 
@@ -194,6 +232,45 @@ def clear_weight_supa_cache() -> None:
     _OUT_FREQ_CACHE.clear()
     _HOST_OUT_CACHE.clear()
     _OUT_FREQ_CPU_CACHE.clear()
+    _PINNED_INPUT_CACHE.clear()
+
+
+def _roundtrip_supa_input(x: torch.Tensor) -> torch.Tensor:
+    """Materialize SUPA-origin activations into a host-origin device buffer.
+
+    This SDK's suFFT mis-reads storages first allocated by device kernels.
+    R7: seed a buffer with CPU→SUPA zeros (host-origin storage), then
+    ``safe.copy_(x)`` (device→device). Correct vs CPU FFT and faster than
+    R6 pinned D2H+H2D (~10.4 vs ~11.1 ms at B16×C32×64×64 single fused).
+
+    Critical (R13 FAIL): never feed this safe buffer into SUDNN Conv2d (or
+    return it as the FNO layer activation). Conv permanently taints the
+    storage for subsequent suFFT — even a later ``copy_`` into the same
+    buffer does not restore correct spectra. Keep safe FFT-only; conv must
+    read the original device activation tensor.
+    """
+    key = (tuple(int(dimension) for dimension in x.shape), str(x.dtype))
+    safe = _SAFE_INPUT_CACHE.get(key)
+    if (
+        safe is None
+        or safe.device.type != "supa"
+        or tuple(safe.shape) != tuple(x.shape)
+        or safe.dtype != torch.float32
+    ):
+        host = torch.zeros(x.shape, dtype=torch.float32, pin_memory=True)
+        safe = host.to("supa", non_blocking=False).contiguous()
+        cap = _buffer_cache_max()
+        if len(_SAFE_INPUT_CACHE) >= cap:
+            _SAFE_INPUT_CACHE.pop(next(iter(_SAFE_INPUT_CACHE)))
+        _SAFE_INPUT_CACHE[key] = safe
+    # R10: avoid redundant float cast when already float32.
+    src = x.detach()
+    if src.dtype != torch.float32:
+        src = src.to(torch.float32)
+    elif not src.is_contiguous():
+        src = src.contiguous()
+    safe.copy_(src, non_blocking=False)
+    return safe
 
 
 def _y_freq_buffer(
@@ -322,6 +399,10 @@ def resolve_use_sufft(
         if key in {"auto", "adaptive"}:
             cached = _AUTO_TUNE_TABLE.get(min(height, width))
             if cached is not None and "use_sufft" in cached:
+                if "buffer_max" in cached:
+                    _AUTO_TUNE_TABLE["__global__"] = {
+                        "buffer_max": max(1, int(cached["buffer_max"]))
+                    }
                 return bool(cached["use_sufft"])
             return min(height, width) >= 64
         raise ValueError(f"use_sufft string must be auto/v1/fused, got {use_sufft!r}")
@@ -370,9 +451,14 @@ def spectral_conv2d_fused(
     to_cpu: bool = True,
     synchronize: bool | None = None,
 ) -> torch.Tensor:
-    """Device-resident suFFT path. Set to_cpu=False to keep output on SUPA."""
+    """suFFT path with a correctness fallback for SUPA-resident inputs.
+
+    This SDK's `sufftExecR2C` path produces incorrect spectra when handed a
+    storage first allocated by device kernels. R7 copies into a host-seeded
+    SUPA buffer (D2D) before FFT. CPU-origin inputs keep the original path.
+    """
     if x.device.type == "supa":
-        x_supa = x.detach().to(torch.float32).contiguous()
+        x_supa = _roundtrip_supa_input(x)
     else:
         x_supa = x.detach().to("supa", torch.float32).contiguous()
     batch_size, _channels_in, height, width = x_supa.shape
@@ -382,28 +468,79 @@ def spectral_conv2d_fused(
     w1_supa = _weights_to_supa_cached(weights1)
     w2_supa = _weights_to_supa_cached(weights2)
 
-    x_freq = spectral_conv_ext.rfft2_sufft(x_supa)
-    out_freq = _out_freq_buffer(
-        batch_size, channels_out, height, width_freq, x_freq.device
-    )
+    # P2–P4: column-FFT only first modes2 bins.
+    # SPECTRAL_TRUNC_COL=1 force on; =0 force off; =auto (default) when
+    # modes2/width_freq <= 0.50 (P3: 64 also wins after narrow-before-permute).
+    # P4: trunc returns packed [B,C,H,modes2,2]; mul/out_freq use modes2 width.
+    width_freq = width // 2 + 1
+    trunc_env = os.environ.get("SPECTRAL_TRUNC_COL", "auto").strip().lower()
+    if trunc_env in {"1", "true", "yes", "on"}:
+        trunc_col = True
+    elif trunc_env in {"0", "false", "no", "off"}:
+        trunc_col = False
+    else:
+        trunc_col = (modes2 / max(width_freq, 1)) <= 0.50
+    if trunc_col:
+        x_freq = spectral_conv_ext.rfft2_sufft_trunc(x_supa, modes2)
+        freq_w = modes2
+    else:
+        x_freq = spectral_conv_ext.rfft2_sufft(x_supa)
+        freq_w = width_freq
+    # Path select: R11 full gather-scatter (default) | R10 corner scatter |
+    # R5 dual_out. SPECTRAL_FULL_SCATTER=0 → R10; SPECTRAL_DUAL_SCATTER=0 → R5.
+    env_full = os.environ.get("SPECTRAL_FULL_SCATTER", "").strip().lower()
+    env_dual = os.environ.get("SPECTRAL_DUAL_SCATTER", "").strip().lower()
+    use_full_scatter = env_full not in {"0", "false", "no", "off"}
+    if env_dual in {"0", "false", "no", "off"}:
+        use_dual_scatter = False
+        use_full_scatter = False
+    else:
+        use_dual_scatter = True
 
-    # Reuse pre-allocated corner buffers (cut per-call SUPA allocator).
-    corner1 = x_freq[:, :, :modes1, :modes2, :].contiguous()
-    corner2 = x_freq[:, :, -modes1:, :modes2, :].contiguous()
-    y1_buf = _y_freq_buffer(batch_size, channels_out, modes1, modes2, corner1.device, corner_id=0)
-    y2_buf = _y_freq_buffer(batch_size, channels_out, modes1, modes2, corner2.device, corner_id=1)
-    # R5: dual-corner pybind dispatch — one C++ entry point that runs both
-    # `spectral_mul` launches with a single pybind boundary. Saves ~0.04 ms
-    # per fused call vs two single pybind calls (≈ 0.16 ms / chain @ L=4).
-    spectral_conv_ext.spectral_mul_dual_out(
-        corner1, w1_supa,
-        corner2, w2_supa,
-        y1_buf, y2_buf,
-    )
-    out_freq[:, :, :modes1, :modes2, :] = y1_buf
-    out_freq[:, :, -modes1:, :modes2, :] = y2_buf
+    if use_full_scatter:
+        # modes in key → alloc zeros once; cache hits skip zero_ (corners
+        # fully overwritten, mid-band stays 0). Packed trunc: mid-band gone.
+        out_freq = _out_freq_buffer(
+            batch_size, channels_out, height, freq_w, x_freq.device,
+            zero=False, modes1=modes1, modes2=modes2,
+        )
+        spectral_conv_ext.spectral_mul_dual_full_scatter_out(
+            x_freq, w1_supa, w2_supa, out_freq, modes1, modes2, False,
+        )
+    elif use_dual_scatter:
+        out_freq = _out_freq_buffer(
+            batch_size, channels_out, height, freq_w, x_freq.device,
+            zero=False, modes1=modes1, modes2=modes2,
+        )
+        corner1 = x_freq[:, :, :modes1, :modes2, :].contiguous()
+        corner2 = x_freq[:, :, -modes1:, :modes2, :].contiguous()
+        # C++ dual_scatter still zeroes (R10 contract).
+        spectral_conv_ext.spectral_mul_dual_scatter_out(
+            corner1, w1_supa, corner2, w2_supa, out_freq,
+        )
+    else:
+        out_freq = _out_freq_buffer(
+            batch_size, channels_out, height, freq_w, x_freq.device,
+            zero=True, modes1=modes1, modes2=modes2,
+        )
+        corner1 = x_freq[:, :, :modes1, :modes2, :].contiguous()
+        corner2 = x_freq[:, :, -modes1:, :modes2, :].contiguous()
+        y1_buf = _y_freq_buffer(
+            batch_size, channels_out, modes1, modes2, corner1.device, corner_id=0
+        )
+        y2_buf = _y_freq_buffer(
+            batch_size, channels_out, modes1, modes2, corner2.device, corner_id=1
+        )
+        spectral_conv_ext.spectral_mul_dual_out(
+            corner1, w1_supa, corner2, w2_supa, y1_buf, y2_buf,
+        )
+        out_freq[:, :, :modes1, :modes2, :] = y1_buf
+        out_freq[:, :, -modes1:, :modes2, :] = y2_buf
 
-    y = spectral_conv_ext.irfft2_sufft(out_freq, height, width)
+    if trunc_col:
+        y = spectral_conv_ext.irfft2_sufft_trunc(out_freq, height, width, modes2)
+    else:
+        y = spectral_conv_ext.irfft2_sufft(out_freq, height, width)
     do_sync = to_cpu if synchronize is None else synchronize
     if do_sync:
         torch_br.supa.synchronize()
@@ -417,19 +554,45 @@ def spectral_conv2d_fused(
     return y
 
 
-def spectral_conv3d_supa(
-    x: torch.Tensor,
+def _mul_corner_3d_supa(
+    corner: torch.Tensor,
     weights: torch.Tensor,
+    batch_size: int,
+    channels_in: int,
+    channels_out: int,
     modes1: int,
     modes2: int,
     modes3: int,
 ) -> torch.Tensor:
-    """3D spectral conv: CPU rFFT3 + SUPA spectral_mul on reshaped corner modes."""
+    corner_2d = corner.contiguous().reshape(
+        batch_size, channels_in, modes1, modes2 * modes3
+    )
+    weights_2d = (
+        weights.detach()
+        .to("cpu", torch.complex64)
+        .contiguous()
+        .reshape(channels_in, channels_out, modes1, modes2 * modes3)
+    )
+    y_2d = spectral_mul_supa(corner_2d, weights_2d)
+    return y_2d.reshape(batch_size, channels_out, modes1, modes2, modes3)
+
+
+def spectral_conv3d_supa(
+    x: torch.Tensor,
+    weights1: torch.Tensor,
+    weights2: torch.Tensor,
+    weights3: torch.Tensor,
+    weights4: torch.Tensor,
+    modes1: int,
+    modes2: int,
+    modes3: int,
+) -> torch.Tensor:
+    """3D spectral conv: CPU rFFT3 + SUPA spectral_mul on official 4 corners."""
     if x.dim() != 5:
         raise ValueError(f"x must be [B,C,D,H,W], got {tuple(x.shape)}")
     x_cpu = x.detach().to("cpu", torch.float32).contiguous()
     batch_size, channels_in, depth, height, width = x_cpu.shape
-    channels_out = int(weights.shape[1])
+    channels_out = int(weights1.shape[1])
 
     x_freq = torch.fft.rfftn(x_cpu, dim=(-3, -2, -1))
     out_freq = torch.zeros(
@@ -441,17 +604,45 @@ def spectral_conv3d_supa(
         dtype=torch.complex64,
         device="cpu",
     )
-    corner = x_freq[:, :, :modes1, :modes2, :modes3].contiguous()
-    corner_2d = corner.reshape(batch_size, channels_in, modes1, modes2 * modes3)
-    weights_2d = (
-        weights.detach()
-        .to("cpu", torch.complex64)
-        .contiguous()
-        .reshape(channels_in, channels_out, modes1, modes2 * modes3)
+    out_freq[:, :, :modes1, :modes2, :modes3] = _mul_corner_3d_supa(
+        x_freq[:, :, :modes1, :modes2, :modes3],
+        weights1,
+        batch_size,
+        channels_in,
+        channels_out,
+        modes1,
+        modes2,
+        modes3,
     )
-    y_2d = spectral_mul_supa(corner_2d, weights_2d)
-    out_freq[:, :, :modes1, :modes2, :modes3] = y_2d.reshape(
-        batch_size, channels_out, modes1, modes2, modes3
+    out_freq[:, :, -modes1:, :modes2, :modes3] = _mul_corner_3d_supa(
+        x_freq[:, :, -modes1:, :modes2, :modes3],
+        weights2,
+        batch_size,
+        channels_in,
+        channels_out,
+        modes1,
+        modes2,
+        modes3,
+    )
+    out_freq[:, :, :modes1, -modes2:, :modes3] = _mul_corner_3d_supa(
+        x_freq[:, :, :modes1, -modes2:, :modes3],
+        weights3,
+        batch_size,
+        channels_in,
+        channels_out,
+        modes1,
+        modes2,
+        modes3,
+    )
+    out_freq[:, :, -modes1:, -modes2:, :modes3] = _mul_corner_3d_supa(
+        x_freq[:, :, -modes1:, -modes2:, :modes3],
+        weights4,
+        batch_size,
+        channels_in,
+        channels_out,
+        modes1,
+        modes2,
+        modes3,
     )
     return torch.fft.irfftn(out_freq, s=(depth, height, width), dim=(-3, -2, -1))
 
@@ -491,7 +682,10 @@ def spectral_conv2d_supa(
     if x.dim() != 4:
         raise ValueError(f"x must be [B,C,H,W], got {tuple(x.shape)}")
     height, width = int(x.shape[-2]), int(x.shape[-1])
-    if resolve_use_sufft(height, width, use_sufft):
+    use_fused_path = resolve_use_sufft(height, width, use_sufft)
+    if not to_cpu:
+        use_fused_path = True
+    if use_fused_path:
         return spectral_conv2d_fused(
             x,
             weights1,

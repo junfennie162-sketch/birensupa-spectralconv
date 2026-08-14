@@ -1,8 +1,12 @@
 # Optimization Notes — SpectralConv + FNO on BIREN SUPA
 
+> **2026-07-31 平台板（提交主表）**：Spectral idle **3.811 / 8.054 / 29.560 ms** @64/128/256（P2–P8b 后）。  
+> **冻结**：无新 SDK API（Plan2d / stride / 真融合）前，**停挖** Spectral formal ms。  
+> 封死：`torch.fft@SUPA`、Plan2d/Many、strided pack、R12–R14、跨 plan 共享 workArea、污染 FFT stage cache 的 scale。  
+> 下文保留 R3–R7 历史笔记（曾锚定 ~5.3/13.7/52 ms）；与现行主表冲突时以 `summary.json` / `OPT_MASTER_PLAN` 为准。
+
 > Captured 2026-07-24 16:30 by Cursor Agent during the **catch-up round** vs `ai4s-n`.
-> Goal: codify the lessons that pushed f and n onto identical perf plates
-> (5.3 / 13.7 / 52.7 ms at 64/128/256), plus the FNO chain gap that remains.
+> Historical plate after catch-up was ~5.3 / 13.7 / 52.7 ms; later P-series landed the 07-31 platform above.
 
 ---
 
@@ -270,3 +274,45 @@ R5-A1 abandoned; no kernel-level fusion pursued.
 3. **The .cursor rule `parameter-cache.mdc`** now formally forbids
    `.detach()`-before-cache. The R4 lesson is now structural instead of
    tribal.
+
+## 7. R6 — pinned host staging for SUPA-origin fused inputs (2026-07-25)
+
+suFFT on this SDK mis-reads device-produced pointers (`rel≈1` if you skip
+materialization). The correctness fallback must round-trip through host.
+Naive `x.cpu().to("supa")` costs ≈2.4 ms per layer at B16×C32×64×64;
+pinned staging (`torch.empty(..., pin_memory=True)` + `copy_` + `.to("supa")`)
+cuts that to ≈0.9 ms and is cached by shape/dtype in `_PINNED_INPUT_CACHE`.
+
+Measured after R6 (formal `fno-batch16`, chain gate PASS):
+
+| metric | pre-R6 (pageable RT) | R6 (pinned RT) |
+|---|---:|---:|
+| batch16 pure forward gps | ≈1.160M | **≈1.289M** (+11%) |
+| ms/batch | 56.47 | **50.84** |
+| peak MB | 165.3 | 165.3 |
+| chain ckpt rel | 4.60e-5 | 4.60e-5 |
+
+CPU-origin SpectralConv unit tests are unchanged (no fallback). Do not remove
+the round-trip without an SDK/suFFT fix that accepts device-produced pointers.
+
+## 8. R7 — host-seeded SUPA buffer (D2D) replaces pinned D2H+H2D (2026-07-25)
+
+Probe `probe_sufft_provenance_r7.py` showed suFFT cares about **storage
+provenance**, not that bytes must traverse the host each call:
+
+| policy | rel | median ms (B16 fused) |
+|---|---:|---:|
+| R6 pinned D2H+H2D | ~2.3e-7 | ~11.1 |
+| host-seeded buffer + D2D `copy_` | ~2.3e-7 | **~10.4** |
+
+Merged into `_roundtrip_supa_input` via `_SAFE_INPUT_CACHE`. Formal checkpoint
+batch16 moved ≈1.289M → ≈1.361M grid_points/s (chain still PASS).
+
+Also in R7: `spectral_mul_kernel` float2 + unroll (block=256; ~1% mul-only);
+`prepare_supa_eval` eager suFFT plan warm; SOL proxy Skill
+(`skills/sol_gap_analysis.md`).
+
+L2 sidecar (40 epoch, `lr=5e-5` cosine from demo ckpt) improved test relative
+L2 **0.009516 → 0.008768** on `generated_ns_like_v2` and was promoted to
+`fno_ns_demo.pt` (backup `fno_ns_demo.pt.pre_r7_backup`). Clean idle rebench
+after promote: spectral **5.302/13.670/52.480 ms**, batch16 **≈1.367M** gps.

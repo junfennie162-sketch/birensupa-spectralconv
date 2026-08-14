@@ -1,0 +1,16 @@
+{
+  "task": "fno_public_ns64_boost",
+  "tag": "boostA_hf_aug",
+  "data_source": "file:navier_stokes_v1e-3_N1200_T20.pt",
+  "baseline_test_l2": 0.04183545894920826,
+  "best_test_l2": 0.03961178520694375,
+  "residual": false,
+  "augment": true,
+  "hf_weight": 0.35,
+  "epochs": 60,
+  "lr": 0.0001,
+  "elapsed_sec": 5395.6,
+  "checkpoint": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_public_boost_A_best.pt",
+  "improved": true,
+  "log": "/workspace/ai4s-f/submission/results/run_logs/fno_public_boost_20260731_203945.log"
+}

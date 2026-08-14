@@ -1,8 +1,8 @@
 {
   "meta": {
-    "updated_at": "2026-07-24T17:02:31Z",
+    "updated_at": "2026-08-11T02:18:20Z",
     "last_phase_marked": "submit_gate",
-    "notes": "R5 closed: auto threshold >=64 (R2), SUPA-resident FNO chain (R3), device-resident forward_supa_chain + n-style perf shape (R3/R4/R5), parameter cache .detach() bug fix (R4, -67% chain ms), irregular 9-shape + FNO 6-shape coverage (R3), suFFT work-area binding + spectral_mul_out + dual_out pybind (R3/R5), use_gn_substitute double-norm correction (R5). Final: f chain 16.099 ms (R3 was 49.118 ms); spectral 64/128/256 = 5.317 / 13.686 / 52.640 ms; FNO L2 = 0.009516 (110 epoch, ns_like_v2). See docs/temp/f-vs-n-latest-2026-07-23.md for full pairwise comparison and dev_log records 14-17."
+    "notes": "Public NS64 FNO L2=0.035012 (spec_ref_r2)."
   },
   "env": {
     "sdk": "/usr/local/birensupa/sdk/1.11.0.0.rc2",
@@ -39,14 +39,15 @@
   },
   "spectral_conv": {
     "status": "accuracy_pass",
-    "rel_error": 2.830059082166811e-07,
+    "rel_error": 2.1701555345060285e-07,
     "threshold": 0.0001,
     "cases": [
       {
         "case": "tiny_8x8",
         "shape": "B2_Cin2_Cout3_8x8",
         "modes": "2x2",
-        "rel": 8.783144571714367e-08,
+        "max_abs": 2.9802322387695312e-08,
+        "max_rel": 4.67537856728397e-08,
         "threshold": 0.0001,
         "ok": true
       },
@@ -54,7 +55,8 @@
         "case": "small_32x32",
         "shape": "B2_Cin4_Cout4_32x32",
         "modes": "8x8",
-        "rel": 1.2002523689593637e-07,
+        "max_abs": 5.960464477539063e-08,
+        "max_rel": 1.1374232639616424e-07,
         "threshold": 0.0001,
         "ok": true
       },
@@ -62,41 +64,188 @@
         "case": "target_64x64",
         "shape": "B2_Cin4_Cout4_64x64",
         "modes": "12x12",
-        "rel": 2.1586749009327028e-07,
-        "threshold": 0.0001,
-        "ok": true
-      },
-      {
-        "case": "official_128",
-        "shape": "B4_Cin32_Cout64_128x128",
-        "modes": "16x16",
-        "rel": 2.717107377007498e-07,
-        "threshold": 0.0001,
-        "ok": true
-      },
-      {
-        "case": "official_256_fused",
-        "shape": "B4_Cin32_Cout64_256x256",
-        "modes": "16x16",
-        "rel": 2.830059082166811e-07,
+        "max_abs": 8.195638656616211e-08,
+        "max_rel": 2.1701555345060285e-07,
         "threshold": 0.0001,
         "ok": true
       }
-    ]
+    ],
+    "perf": {
+      "status": "measured",
+      "config": {
+        "B": 4,
+        "C_in": 32,
+        "C_out": 64,
+        "modes": [
+          16,
+          16
+        ],
+        "warmup": 10,
+        "iters": 100,
+        "path": "auto",
+        "timing_scope": "CPU input through CPU output; synchronized wall clock",
+        "note": "idle recheck 2026-07-31; within noise of P8b 3.807/8.001/29.162"
+      },
+      "rows": [
+        {
+          "resolution": "64x64",
+          "forward_time_ms": 3.811,
+          "memory_MB": 225.3
+        },
+        {
+          "resolution": "128x128",
+          "forward_time_ms": 8.054,
+          "memory_MB": 253.3
+        },
+        {
+          "resolution": "256x256",
+          "forward_time_ms": 29.56,
+          "memory_MB": 353.3
+        }
+      ],
+      "measured_at": "2026-07-31T02:54:15Z"
+    },
+    "backward": {
+      "status": "pass",
+      "threshold": 0.0001,
+      "worst_rel": 6.252869866330002e-08,
+      "cases": [
+        {
+          "shape": "B2_Cin2_Cout3_4x4",
+          "fwd_rel": 4.5491461264646205e-08,
+          "grad_x_rel": 5.4103335145327947e-08,
+          "grad_w_rel": 6.252869866330002e-08,
+          "ok": true
+        },
+        {
+          "shape": "B2_Cin4_Cout4_8x8",
+          "fwd_rel": 4.1477115075849724e-08,
+          "grad_x_rel": 4.481754345420086e-08,
+          "grad_w_rel": 5.082164378222842e-08,
+          "ok": true
+        },
+        {
+          "shape": "B2_Cin4_Cout4_12x12",
+          "fwd_rel": 4.445655577001162e-08,
+          "grad_x_rel": 5.31553325799905e-08,
+          "grad_w_rel": 5.5756842698428954e-08,
+          "ok": true
+        }
+      ],
+      "note": "SpectralMulFunction: SUPA forward + conj-transpose einsum backward"
+    },
+    "conv3d": {
+      "status": "accuracy_pass",
+      "rel_error": 1.1885726536320362e-07,
+      "threshold": 0.0001,
+      "cases": [
+        {
+          "case": "tiny_8",
+          "shape": "B2_Cin2_Cout3_8x8x8",
+          "modes": "2x2x2",
+          "max_abs": 5.960464477539063e-08,
+          "max_rel": 8.426842867947926e-08,
+          "threshold": 0.0001,
+          "ok": true
+        },
+        {
+          "case": "small_16",
+          "shape": "B2_Cin4_Cout4_16x16x16",
+          "modes": "4x4x4",
+          "max_abs": 1.7881393432617188e-07,
+          "max_rel": 1.1885726536320362e-07,
+          "threshold": 0.0001,
+          "ok": true
+        }
+      ],
+      "note": "CPU rFFT3 + SUPA spectral_mul; official 4-corner weights1-4; NOT full 3D FNO"
+    },
+    "irregular": {
+      "status": "accuracy_pass",
+      "measured_at": "2026-08-02T00:31:47Z",
+      "passed": 9,
+      "total": 9,
+      "failed": [],
+      "worst_rel": 3.2015142409427905e-07,
+      "threshold": 0.0001,
+      "cases": [
+        {
+          "shape": "aspym_40x64",
+          "max_rel": 1.5931974346480909e-07,
+          "ok": true,
+          "threshold": 0.0001
+        },
+        {
+          "shape": "square_72x72",
+          "max_rel": 2.4531340266010275e-07,
+          "ok": true,
+          "threshold": 0.0001
+        },
+        {
+          "shape": "square_96x96",
+          "max_rel": 2.584404418962622e-07,
+          "ok": true,
+          "threshold": 0.0001
+        },
+        {
+          "shape": "square_100x100",
+          "max_rel": 2.6696516660218315e-07,
+          "ok": true,
+          "threshold": 0.0001
+        },
+        {
+          "shape": "square_160x160",
+          "max_rel": 3.2015142409427905e-07,
+          "ok": true,
+          "threshold": 0.0001
+        },
+        {
+          "shape": "square_192x192",
+          "max_rel": 2.717529954310802e-07,
+          "ok": true,
+          "threshold": 0.0001
+        },
+        {
+          "shape": "wider_256x64",
+          "max_rel": 2.441957071686065e-07,
+          "ok": true,
+          "threshold": 0.0001
+        },
+        {
+          "shape": "almost_2pow_48x48",
+          "max_rel": 1.562827887146457e-07,
+          "ok": true,
+          "threshold": 0.0001
+        },
+        {
+          "shape": "non2pow_28x28",
+          "max_rel": 1.5099635695187144e-07,
+          "ok": true,
+          "threshold": 0.0001
+        }
+      ],
+      "note": "defensive irregular shapes; not formal spectral_conv.perf"
+    }
   },
   "fno_ns": {
-    "status": "forward_pass_l2_strengthened",
-    "rel_l2": 0.00951623567380011,
-    "rel_l2_torch_path": 0.00951623497530818,
+    "status": "checkpoint_evaluation_pass",
+    "rel_l2": 0.0024911684449762106,
+    "rel_l2_torch_path": 0.0024911684449762106,
     "fourier_layers": 4,
     "resolution": 64,
     "modes": 16,
     "width": 32,
     "t_in": 10,
-    "data": "generated_ns_like_v2",
+    "data": "public_navier_stokes_v1e-3_N1200_T20",
+    "data_disclosure": "Primary public-NS64 metrics under fno_ns.public_ns64; legacy generated_ns_like_v2 metrics retained in history. See results/data_disclosure.md.",
     "n_train": 768,
+    "n_val": 0,
     "n_test": 128,
-    "train_epochs": 110,
+    "train_epochs": 150,
+    "batch_size": 8,
+    "optimizer_steps": 14400,
+    "seed": 20260722,
+    "checkpoint_meta": "fno_ns/checkpoints/checkpoint_meta.json",
     "train_rel_l2_history": [
       0.2831867868080735,
       0.0756031902662168,
@@ -207,12 +356,62 @@
       0.004764282081547814,
       0.004729240038917244,
       0.004706329700032559,
-      0.004688889440634132
+      0.004688889440634132,
+      0.006206647914950736,
+      0.006046646536560729,
+      0.005726366488185401,
+      0.005760011918027885,
+      0.0056644010813518735,
+      0.005706541788337442,
+      0.005596125018200837,
+      0.005528302509143638,
+      0.005562870219970743,
+      0.005472366504060726,
+      0.005356517178976598,
+      0.005183497177010092,
+      0.005097577047611897,
+      0.005208269683256124,
+      0.005133751081302762,
+      0.004883718516794033,
+      0.0048857675671267016,
+      0.004752563957784635,
+      0.0046681814031520235,
+      0.004574375382314126,
+      0.004594509438902605,
+      0.0045240146209835075,
+      0.004466237653105054,
+      0.0043788197823838955,
+      0.0043066757449802635,
+      0.00423635571981625,
+      0.004190935714480777,
+      0.004178567743413926,
+      0.004112790071909937,
+      0.004058508396459122,
+      0.004024221848036784,
+      0.003989915797622719,
+      0.003950662515611232,
+      0.003925971977878362,
+      0.003895106005074922,
+      0.003879227001258793,
+      0.003863368127592063,
+      0.0038430572046005787,
+      0.0038299756051856093,
+      0.0038265274173075645
     ],
     "figures": [
       "results/figures/fno_ns_pred_vs_gt_2026-07-21.png",
       "results/figures/fno_ns_pred_vs_gt_2026-07-22.png",
-      "results/figures/fno_ns_pred_vs_gt_2026-07-23.png"
+      "results/figures/fno_ns_pred_vs_gt_2026-07-23.png",
+      "results/figures/fno_ns_pred_vs_gt_2026-07-25.png",
+      "results/figures/fno_ns_sample_strip_2026-07-25.png",
+      "results/figures/fno_ns_pred_vs_gt_2026-07-26.png",
+      "results/figures/fno_ns_sample_strip_2026-07-26.png",
+      "results/figures/fno_ns_pred_vs_gt_2026-07-31.png",
+      "results/figures/fno_ns_sample_strip_2026-07-31.png",
+      "results/figures/fno_ns_pred_vs_gt_2026-08-01.png",
+      "results/figures/fno_ns_sample_strip_2026-08-01.png",
+      "results/figures/fno_ns_pred_vs_gt_2026-08-02.png",
+      "results/figures/fno_ns_sample_strip_2026-08-02.png"
     ],
     "checkpoint": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_demo.pt",
     "resume_extra_epochs": 50,
@@ -265,7 +464,198 @@
       "sum_layers_median_ms": 14.152,
       "chain_full_median_ms": 16.098,
       "implication": "spectral kernel dominates ~80% of per-layer time; SDK ABI lacks stride-aware FFT, so remaining wins need .su kernel work (out of scope)"
-    }
+    },
+    "chain_consistency": {
+      "status": "pass",
+      "threshold": 0.0001,
+      "random_model": {
+        "relative_error": 6.580167246283963e-05,
+        "threshold": 0.0001,
+        "finite": true,
+        "ok": true,
+        "input_shape": [
+          4,
+          10,
+          64,
+          64
+        ]
+      },
+      "checkpoint_model": {
+        "relative_error": 4.7575431381119415e-05,
+        "threshold": 0.0001,
+        "finite": true,
+        "ok": true,
+        "input_shape": [
+          4,
+          10,
+          64,
+          64
+        ]
+      },
+      "fallback": "SUPA-resident fused input D2D-copied into host-seeded SUPA buffer before suFFT",
+      "measured_at": "2026-08-02T03:50:01Z"
+    },
+    "perf_batch16": {
+      "status": "measured",
+      "measured_at": "2026-08-03T13:27:04Z",
+      "device": "Biren106B / supa",
+      "data": "file:navier_stokes_v1e-3_N1200_T20.pt",
+      "data_disclosure": "public NS64 navier_stokes_v1e-3_N1200_T20.pt; n_train=1000/n_test=128",
+      "checkpoint": "fno_ns/checkpoints/fno_ns_public_demo.pt",
+      "config": {
+        "batch_size": 16,
+        "height": 64,
+        "width": 64,
+        "warmup": 10,
+        "iters": 50,
+        "seed": 20260722,
+        "dtype": "float32",
+        "split": "1000/128"
+      },
+      "chain_consistency": {
+        "relative_error": 8.799542410997674e-05,
+        "threshold": 0.0001,
+        "finite": true,
+        "ok": true,
+        "input_shape": [
+          4,
+          10,
+          64,
+          64
+        ]
+      },
+      "chain_consistency_batch16_note": {
+        "relative_error": 9.546995715936646e-05,
+        "threshold": 0.0001,
+        "finite": true,
+        "ok": true,
+        "input_shape": [
+          16,
+          10,
+          64,
+          64
+        ]
+      },
+      "pure_forward": {
+        "grid_points_per_second": 1600295.3125298938,
+        "samples_per_second": 390.6970977856186,
+        "milliseconds_per_sample": 2.559527587145567,
+        "forward_milliseconds_per_batch": 40.95244139432907,
+        "peak_memory_MB": 202.24609375
+      },
+      "with_dataloader": {
+        "grid_points_per_second": 1439739.6450887884,
+        "samples_per_second": 351.49893678925497,
+        "milliseconds_per_sample": 2.844958818750456,
+        "forward_milliseconds_per_batch": 45.519341100007296,
+        "peak_memory_MB": 202.24609375
+      },
+      "note": "protocol-aligned public NS64 + public_demo ckpt; gate=B4; not Spectral formal ms"
+    },
+    "visualization": {
+      "shared_colorbar_for_pred_gt": true,
+      "absolute_and_relative_error_maps": true,
+      "sample_index": 0,
+      "target_time_step": 10,
+      "sample_relative_l2": 0.05140529200434685,
+      "data": "public_ns64",
+      "figure": "results/figures/fno_ns_pred_vs_gt_2026-08-02.png",
+      "demo_copy": "demo/media/fno_ns_pred_vs_gt_2026-08-02.png",
+      "sample_strip": "results/figures/fno_ns_sample_strip_2026-08-02.png",
+      "sample_strip_records": [
+        {
+          "label": "best",
+          "sample_index": 10,
+          "sample_relative_l2": 0.022601732617623382
+        },
+        {
+          "label": "median",
+          "sample_index": 7,
+          "sample_relative_l2": 0.02926202082347886
+        },
+        {
+          "label": "worst",
+          "sample_index": 13,
+          "sample_relative_l2": 0.05907211583940108
+        }
+      ],
+      "strip": {
+        "best": {
+          "index": 86,
+          "sample_relative_l2": 0.019410131499171257
+        },
+        "median": {
+          "index": 3,
+          "sample_relative_l2": 0.030071739107370377
+        },
+        "worst": {
+          "index": 54,
+          "sample_relative_l2": 0.08767800033092499
+        }
+      },
+      "note": "Figures after spec_ref_r2 promote (20260811_021758)."
+    },
+    "train_throughput": {
+      "status": "measured",
+      "measured_at": "2026-07-25T13:06:25Z",
+      "bonus": true,
+      "scope": "one optimizer step = forward + relative-L2 loss + backward + Adam step",
+      "device": "cpu",
+      "path": "use_supa=False (matches submitted checkpoint training path)",
+      "data": "synthetic_random_batches_for_throughput_only",
+      "config": {
+        "batch_size": 8,
+        "height": 64,
+        "width": 64,
+        "t_in": 10,
+        "warmup": 10,
+        "iters": 50,
+        "seed": 20260722,
+        "learning_rate": 0.0005,
+        "weight_decay": 0.0001,
+        "dtype": "float32"
+      },
+      "last_loss": 0.025777962058782578,
+      "metrics": {
+        "grid_points_per_second": 34711.58516155643,
+        "samples_per_second": 8.474508096083113,
+        "milliseconds_per_sample": 118.00094927777536,
+        "step_milliseconds_per_batch": 944.0075942222029,
+        "peak_memory_MB": null,
+        "note": "CPU training path; peak device MB not applicable"
+      }
+    },
+    "official_100ep": {
+      "best_test_l2": 0.0051438145455904305,
+      "gate": "\u65c1\u6ce8-legacy_v2",
+      "checkpoint": "fno_ns/checkpoints/fno_ns_official_best.pt",
+      "promoted_to_demo": true,
+      "split": "1000/128",
+      "polish": "continue3",
+      "note": "generated_ns_like_v2 continue3; NOT public NS64 primary"
+    },
+    "relative_l2": 0.035011906176805496,
+    "l2_note": "PRIMARY public NS64 after spec_ref_r2",
+    "rel_l2_768_split": 0.0024911684449762106,
+    "public_ns64": {
+      "status": "promoted_spec_ref_r2",
+      "data_source": "file:navier_stokes_v1e-3_N1200_T20.pt",
+      "relative_l2": 0.035011906176805496,
+      "n_train": 1000,
+      "n_test": 128,
+      "seed": 20260722,
+      "checkpoint": "fno_ns/checkpoints/fno_ns_public_demo.pt",
+      "protocol": "official_gate_1000_128",
+      "promoted_tag": "spec_ref_r2"
+    },
+    "legacy_generated_ns_like_v2": {
+      "relative_l2_1000_128": 0.0051438145455904305,
+      "checkpoint": "fno_ns/checkpoints/fno_ns_demo.pt",
+      "promoted_tag": "continue3",
+      "note": "engineering baseline; not public NS64"
+    },
+    "checkpoint_primary": "fno_ns/checkpoints/fno_ns_public_demo.pt",
+    "rel_l2_field_note": "rel_l2 / rel_l2_torch_path are 768-split legacy side notes; PRIMARY is relative_l2 / public_ns64.relative_l2"
   },
   "official_baseline": {
     "status": "pass",
@@ -402,7 +792,8 @@
     },
     "p6_3d": {
       "status": "done",
-      "worst_rel": 1.0731816502129732e-07
+      "worst_rel": 1.1885726536320362e-07,
+      "corners": 4
     },
     "p5_materials": {
       "status": "done_refreshed_2026_07_23",
@@ -559,52 +950,49 @@
       "changes": [
         "resolve_use_sufft threshold >=64 (was >=256)"
       ]
+    },
+    "fused_segments_2026_08_01": {
+      "status": "done",
+      "run_log": "results/run_logs/spectral_fused_segments_2026-08-01.md",
+      "rows": [
+        {
+          "path": "fused_formal",
+          "resolution": "64x64",
+          "e2e_ms": 3.84,
+          "h2d_ms": 0.275,
+          "r2c_ms": 1.062,
+          "mul_scatter_ms": 0.228,
+          "c2r_ms": 2.126,
+          "d2h_ms": 0.181,
+          "trunc_col": true,
+          "note": "\u65c1\u6ce8\u5206\u6bb5\uff1b\u4e0d\u5f97\u8986\u76d6 summary.spectral_conv.perf"
+        },
+        {
+          "path": "fused_formal",
+          "resolution": "128x128",
+          "e2e_ms": 8.887,
+          "h2d_ms": 0.936,
+          "r2c_ms": 2.156,
+          "mul_scatter_ms": 0.251,
+          "c2r_ms": 4.562,
+          "d2h_ms": 0.603,
+          "trunc_col": true,
+          "note": "\u65c1\u6ce8\u5206\u6bb5\uff1b\u4e0d\u5f97\u8986\u76d6 summary.spectral_conv.perf"
+        },
+        {
+          "path": "fused_formal",
+          "resolution": "256x256",
+          "e2e_ms": 29.312,
+          "h2d_ms": 3.779,
+          "r2c_ms": 6.745,
+          "mul_scatter_ms": 0.255,
+          "c2r_ms": 16.537,
+          "d2h_ms": 2.297,
+          "trunc_col": true,
+          "note": "\u65c1\u6ce8\u5206\u6bb5\uff1b\u4e0d\u5f97\u8986\u76d6 summary.spectral_conv.perf"
+        }
+      ],
+      "note": "\u65c1\u6ce8\uff1bformal perf \u672a\u6539"
     }
-  },
-  "spectral_conv_combo": {
-    "perf": [
-      {
-        "resolution": "64x64",
-        "forward_time_ms": "5.307",
-        "forward_ms_raw": 5.307091576978564,
-        "memory_MB": "41.7",
-        "memory_mb_raw": 41.6875,
-        "output_shape": [
-          4,
-          64,
-          64,
-          64
-        ],
-        "path": "auto"
-      },
-      {
-        "resolution": "128x128",
-        "forward_time_ms": "13.683",
-        "forward_ms_raw": 13.6828619427979,
-        "memory_MB": "137.9",
-        "memory_mb_raw": 137.875,
-        "output_shape": [
-          4,
-          64,
-          128,
-          128
-        ],
-        "path": "auto"
-      },
-      {
-        "resolution": "256x256",
-        "forward_time_ms": "52.568",
-        "forward_ms_raw": 52.567556304857135,
-        "memory_MB": "522.2",
-        "memory_mb_raw": 522.25,
-        "output_shape": [
-          4,
-          64,
-          256,
-          256
-        ],
-        "path": "auto"
-      }
-    ]
   }
 }

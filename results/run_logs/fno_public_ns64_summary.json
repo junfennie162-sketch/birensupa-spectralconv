@@ -1,0 +1,22 @@
+{
+  "task": "fno_ns_public_ns64_train",
+  "data_source": "file:navier_stokes_v1e-3_N1200_T20.pt",
+  "data_shape": [
+    1200,
+    20,
+    64,
+    64
+  ],
+  "n_train": 1000,
+  "n_test": 128,
+  "batch_size": 16,
+  "epochs": 50,
+  "steps_per_epoch": 63,
+  "total_steps": 3150,
+  "baseline_test_l2": 0.04352984903380275,
+  "best_test_l2": 0.04183545894920826,
+  "elapsed_sec": 3848.2,
+  "checkpoint": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_public_ns64_continue_best.pt",
+  "init_from": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_public_ns64_best_pre_continue.pt",
+  "log": "/workspace/ai4s-f/submission/results/run_logs/fno_public_ns64_train_20260731_162514.log"
+}

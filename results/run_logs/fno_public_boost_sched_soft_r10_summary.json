@@ -1,0 +1,18 @@
+{
+  "task": "fno_public_sched_sampling",
+  "tag": "sched_soft_r10",
+  "baseline_test_l2": 0.03530218452215195,
+  "best_test_l2": 0.03530218452215195,
+  "gate": 0.03522218452215195,
+  "beat_gate": false,
+  "improved_vs_baseline": false,
+  "delta_vs_baseline": 0.0,
+  "epochs_ran": 5,
+  "p_ar_max": 0.0,
+  "soft_alpha_max": 0.55,
+  "lr": 1.5e-06,
+  "elapsed_sec": 1455.6,
+  "checkpoint": null,
+  "log": "/workspace/ai4s-f/submission/results/run_logs/fno_public_sched_soft_r10_20260804_004648.log",
+  "promote": false
+}

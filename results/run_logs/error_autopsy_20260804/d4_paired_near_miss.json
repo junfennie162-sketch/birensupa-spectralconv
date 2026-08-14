@@ -1,0 +1,18 @@
+{
+  "definition": "d_i = e1_r10 - e1_r9  (negative means r10 better)",
+  "mean_d": -5.039256939198822e-05,
+  "median_d": -4.647299647331238e-05,
+  "bootstrap_mean_ci95": [
+    -6.220906652742997e-05,
+    -3.795826123678126e-05
+  ],
+  "improve_fraction": 0.828125,
+  "top10_contribution_to_total_sum": 0.31563773209612267,
+  "top3_dominates_half_of_total": false,
+  "worst_decile_mean_d": -6.412000705798467e-05,
+  "worst_decile_worsened": false,
+  "mean_e1_r9": 0.03530218444939237,
+  "mean_e1_r10": 0.03525179188000038,
+  "label": "INCUBATE_WEAK_SIGNAL",
+  "note": "INCUBATE does not promote / does not enter report v-chain"
+}

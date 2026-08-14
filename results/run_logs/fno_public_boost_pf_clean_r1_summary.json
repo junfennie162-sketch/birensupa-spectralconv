@@ -1,0 +1,21 @@
+{
+  "task": "fno_public_pushforward_clean_anchor",
+  "tag": "pf_clean_r1",
+  "baseline_test_l2": 0.03530218452215195,
+  "best_test_l2": 0.035216360818594694,
+  "gate": 0.03520218452215195,
+  "beat_gate": false,
+  "improved_vs_baseline": true,
+  "delta_vs_baseline": 8.582370355725288e-05,
+  "epochs_ran": 4,
+  "lambda_pf": 1.0,
+  "hf_weight": 0.15,
+  "lr": 5e-06,
+  "freeze_spectral": true,
+  "init_from": "checkpoints/fno_ns_public_freeze_r9_best.pt",
+  "elapsed_sec": 545.1,
+  "checkpoint": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_public_pf_clean_r1_best.pt",
+  "log": "/workspace/ai4s-f/submission/results/run_logs/fno_public_pf_clean_r1_20260804_124142.log",
+  "promote": false,
+  "note": "Autopsy D CONDITIONAL_PF_ALLOWED; no auto-promote"
+}

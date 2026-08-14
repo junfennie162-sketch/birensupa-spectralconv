@@ -47,10 +47,12 @@ for row in perf:
     lines.append(f"- {row.get('resolution')}: {row.get('forward_time_ms')} ms, {row.get('memory_MB')} MB")
 lines += [
     "",
-    "## FNO-NS",
+    "## FNO-NS（公开主报）",
     f"- fourier_layers: {fno.get('fourier_layers')}",
-    f"- rel_l2: {fno.get('rel_l2')}",
-    f"- data: {fno.get('data')}",
+    f"- relative_l2: {(fno.get('public_ns64') or {}).get('relative_l2', fno.get('relative_l2'))}",
+    f"- promoted_tag: {(fno.get('public_ns64') or {}).get('promoted_tag')}",
+    f"- checkpoint: {(fno.get('public_ns64') or {}).get('checkpoint', fno.get('checkpoint_primary'))}",
+    f"- legacy_rel_l2_note: {fno.get('rel_l2')} (NOT public primary)",
     "",
 ]
 (root / "demo/media/metrics_snapshot.md").write_text("\n".join(lines))

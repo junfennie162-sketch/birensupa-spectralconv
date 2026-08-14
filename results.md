@@ -1,106 +1,176 @@
 # 测试结果
 
-## 环境
+## 1. 环境
 
-- Docker / SDK：`/usr/local/birensupa/sdk/1.11.0.0.rc2`
-- SUPA_BASE：`/usr/local/birensupa/sdk/1.11.0.0.rc2`
-- Python / torch / torch_br：`torch 2.9.0+cu128` + `torch_br`（`device=supa`）
-- 运行设备：BIREN 单卡 Biren106B（`brsmi` 可见；`torch.cuda.is_available()` = False 属预期）
-- 基线日期：2026-07-21
-- 机器摘要：`results/summary.json` → `env` / `gemv_baseline`
+- SDK：`/usr/local/birensupa/sdk/1.11.0.0.rc2`
+- PyTorch：`2.9.0+cu128` + `torch_br`
+- 设备：BIREN 单卡 Biren106B，PyTorch 设备名 `supa`
+- `torch.cuda.is_available() == False` 属预期
+- 每个新终端先执行：
 
-### 环境各组件 → 后续用途（Agent 必读）
+```bash
+source /usr/local/birensupa/sdk/1.11.0.0.rc2/scripts/brsw_set_env.sh
+export SUPA_BASE=/usr/local/birensupa/sdk/1.11.0.0.rc2
+```
 
-| 组件 | 实测结论 | 后续能做什么 |
-|------|----------|----------------|
-| `brsw_set_env.sh` + SDK | 可正确 source | 编译/链接 SUPA 与 `torch_br` 全套依赖 |
-| `brcc` | 可用 | 写并编译 SpectralConv `.su` |
-| `brsmi` / Biren106B | 单卡可用 | 正确性/性能与提交用运行日志 |
-| `torch` + `torch_br` / `supa` | 张量可上 `supa:0` | Extension 封装、FNO 组装、CPU reference 对比 |
-| GEMV 方式一 accuracy | 3/3 通过 | SUPA/C++ 直连链路可用（备选） |
-| GEMV 方式二 Extension | `ok=True` | **本队正式路线模板已通**，迁改 SpectralConv |
+## 2. 必选 Spectral Convolution
 
-说明：以上验证的是**服务器竞赛环境**，不是 SpectralConv/FNO 作品本身。
+### 2.1 实现
 
-## 编译
+正式实现位于 `spectral_conv/`：
 
-- 命令：`cd submission/spectral_conv && ./build.sh`（`ai4s-f`）
-- 结果：已生成 `spectral_conv_ext*.so`（对照 GEMV Extension 链接方式）
+- `spectral_conv_ext.su`：SUPA 频域复数乘 kernel
+- `spectral_conv_ext.cpp`：PyTorch Extension、suFFT 1D plan 拼接、plan/workspace cache、`spectral_mul_out` / `dual_out`
+- `spectral_conv_ops.py`：CPU FFT v1 与 suFFT fused 双路径，`min(H,W)>=64` 时 auto 选择 fused
+- Reference：`reference_pytorch.py`
 
-## 正确性
+### 2.2 正确性
 
-### 官方基准 · GEMV（环境冒烟）
+2026-07-25 只读同协议复测，误差采用 Frobenius 相对误差：
 
-- 方式一：`make run-accuracy` → `accuracy_ok: true`（passed 3/3）
-- 方式二：`torch_extension` → `{'task': 'gemv_supa_pytorch_extension', 'ok': True}`
-- 结论：环境门槛已过，可进入必选算子开发
+| case | shape | modes | relative error | 结果 |
+|---|---|---|---:|---|
+| tiny_8x8 | B2/Cin2/Cout3/8×8 | 2×2 | 4.675e-8 | PASS |
+| small_32x32 | B2/Cin4/Cout4/32×32 | 8×8 | 1.137e-7 | PASS |
+| target_64x64 | B2/Cin4/Cout4/64×64 | 12×12 | 2.170e-7 | PASS |
+| official_128 | B4/Cin32/Cout64/128×128 | 16×16 | 2.714e-7 | PASS |
+| official_256_fused | B4/Cin32/Cout64/256×256 | 16×16 | 2.846e-7 | PASS |
 
-### 必选 · Spectral Convolution（ai4s-f · 2026-07-21）
+- worst relative error：`2.846e-7`
+- 阈值：`1e-4`
+- 结论：5/5 PASS
 
-- 命令：`./build.sh && python3 test_accuracy.py`
-- Reference：`reference_pytorch.py`（CPU rFFT + einsum + iFFT）
-- SUPA 核心：`spectral_mul` 频域复数乘（`.su`）；v1 FFT 仍在 CPU，后续可迁 suFFT
-- 输出：worst Frobenius 相对误差 ≈ `1.24e-7`（阈值 ≤ `1e-4`）
-- 用例：`8×8` / `32×32` / `64×64` 均 `ok=True`
-- 日志：`results/run_logs/spectral_accuracy_2026-07-21.md`
-- 结论：**正确性通过**
+### 2.3 性能
 
-### 进阶 · FNO-Navier-Stokes
+2026-07-29 正式复测（R11 + P4 packed trunc + P7 dual-launch + P8b packed scale）：`B=4, Cin=32, Cout=64, modes=16×16`，`use_sufft="auto"`，warmup=10，iters=100，同步 wall-clock，计时范围包含 CPU 输入到 CPU 输出。
 
-- 命令：`cd submission/fno_ns && python3 test_forward.py && python3 visualize.py`
-- 模型：`model.py`（4 层 Fourier Layer；双角 SpectralConv 与必选共用 fused API）
-- 数据：离线 NS-like 64×64（`dataset.py` / `generated_ns_like_v1e-3`；外网不可用时的 FNO 风格替代）
-- 训练：256 样本 × 40 epoch（CPU torch 可微）；SUPA 评估走 fused，跑满 test loader
-- 指标：相对 L2（SUPA）≈ **0.0173**（相对初版 0.0506 / 加强版 0.0359 明显下降）
-- 可视化路径：`results/figures/fno_ns_pred_vs_gt_2026-07-22.png`
-- 日志：`results/run_logs/fno_forward_2026-07-22.md`
-- 结论：**加长训达标**；公开 HDF5/HF 有网后可替换数据再训
+| 分辨率 | forward ms | peak MB |
+|---|---:|---:|
+| 64×64 | 3.811 | 225.3 |
+| 128×128 | 8.054 | 253.3 |
+| 256×256 | 29.560 | 353.3 |
 
-### 扩展 · spectral_mul 反向（P4）
+主表对齐 `summary.json` → `spectral_conv.perf`（idle recheck 2026-07-31T02:54:15Z；与 P8b 3.807/8.001/29.162 噪声内一致）。脚本：`spectral_conv/test_perf.py`。历史 v1/fused/SOL-style 结果保留在 legacy/optimization 字段与 `results/run_logs/`，不再作为主表。
 
-- 命令：`python3 test_backward.py`
-- 实现：`SpectralMulFunction`（SUPA 前向 + 共轭转置 einsum 反向）
-- 指标：worst grad 相对误差 ≈ **6.25e-8**（阈值 1e-4）
-- 日志：`results/run_logs/spectral_backward_2026-07-22.md`
+相对官网 CPU 参考（`official_baseline`，本机）：约 **19.5× / 11.1× / 10.0×** @64/128/256（非竞品 GPU / 非 SOL）。fused 分段旁注见 `results/run_logs/spectral_fused_segments_2026-08-01.md`（C2R 为主墙；**未改** formal 主表）。
 
-### 扩展 · SpectralConv3d（P6）
+### 2.4 扩展
 
-- 命令：`python3 test_3d_accuracy.py`
-- 路径：CPU `rfftn` + SUPA `spectral_mul`（modes 维 reshape 复用 2D kernel）
-- 指标：worst_rel ≈ **1.07e-7**
-- 日志：`results/run_logs/spectral_3d_accuracy_2026-07-22.md`
-- 说明：仅算子前向扩展；未做完整 3D FNO
+| 项目 | 结果 |
+|---|---|
+| Backward | 3/3 PASS，worst relative error `6.253e-8` |
+| SpectralConv3d | 2/2 PASS（官网四角），worst relative error `≈1.19e-7` |
+| irregular shapes | 9/9 PASS，worst relative error `3.202e-7` |
+| suFFT 独立验证 | 有独立 accuracy / perf 脚本 |
+| SOL-style proxy | warmup=10、iters=50、trials=3；只作为队内 proxy，不冒充官方理论 SOL |
 
-## 性能（正式路径 · 分辨率自适应 · 2026-07-22 晚）
+## 3. 进阶 FNO-Navier-Stokes
 
-- **正式路径 `use_sufft=\"auto\"`**：`min(H,W)<256` → v1；`>=256` → fused（SOL 严格测法下小图 fused 更慢，故分流）
-- 交叉评测：`python3 test_sol_style_perf.py`（warmup=10 / iters=50 / trials=3 / 每轮 clone；**median**）
+### 3.1 模型
 
-| 分辨率 | v1 median | fused median | **auto 正式** | auto vs v1 |
-|---|---:|---:|---:|---:|
-| 64×64 | 17.9 ms | 45.9 ms | **17.9 ms** | ≈1.0× |
-| 128×128 | 23.8 ms | 46.2 ms | **28.0 ms** | ≈0.85×（方差内等同 v1） |
-| 256×256 | 268.0 ms | 61.4 ms | **63.9 ms** | **≈4.2×** |
+- 4 层 Fourier Layer
+- width：32
+- modes：16×16
+- 输入：10 个 64×64 涡度时间步
+- 输出：1 个 64×64 涡度时间步
+- 每层复用必选 SpectralConv Extension
+- 主报 checkpoint：`fno_ns/checkpoints/fno_ns_public_demo.pt`（约 17 MB）
+- 旁注 checkpoint：`fno_ns/checkpoints/fno_ns_demo.pt`（自建 v2，非公开分）
 
-旧 P3 冻结表（同输入热路径、偏乐观）仍见 `opt_perf_freeze_2026-07-22.md`；对外讲性能以 **auto + SOL 风格** 为准。
+### 3.2 数据披露
 
-### SOL-ExecBench 风格交叉评测（优化决策用）
+**正式主报使用公开 NS64**（`navier_stokes_v1e-3_N1200_T20.pt`，1000/128）。自建 `generated_ns_like_v2` 仅为工程对照，见 `results/data_disclosure.md` 附录。
 
-- 参考：[NVIDIA/SOL-ExecBench](https://github.com/nvidia/sol-execbench)（正确性优先、warmup=10 / iters=50 / trials=3、每轮 clone 输入、相对固定 baseline 的 gap）
-- 命令：`cd spectral_conv && python3 test_sol_style_perf.py` 或 `./scripts/run_tests.sh sol-perf`
-- 说明：Biren 无 SOLAR/B200 理论 SOL 界，报告 **proxy_sol_score**（相对队内 v1 baseline + 手册叙述 ref）；官网正式表仍以 §3.2 iters=100 为准
-- 日志：`results/run_logs/spectral_sol_style_perf_*.md`
+### 3.3 训练量与 L2（公开 NS64 为主）
 
-（GEMV Extension 顺带：`perf_4096x1024` avg ≈ 2.94 ms，仅作环境参考）
+**正式公开集成绩（2026-08-06 · dualview_r2 · 评测报告 v9）**
 
-## 可视化或附加产物
+| 项 | 值 |
+|---|---|
+| 数据 | `fno_ns/data/navier_stokes_v1e-3_N1200_T20.pt`（HF 公开 NS64） |
+| 划分 | n_train=1000 / n_test=128，seed=`20260722` |
+| 训练 | … → freeze_r9/r11 → long_push（qt/thaw/dualview）→ **dualview_r2** |
+| test relative L2 | **0.03511497611179948**（`dualview_r2` promote） |
+| checkpoint | `fno_ns/checkpoints/fno_ns_public_demo.pt` |
 
-- 图片 / 日志 / checkpoint：`results/`
-- FNO 对比图：`results/figures/fno_ns_pred_vs_gt_2026-07-21.png`
-- 环境冒烟日志：`results/run_logs/env_baseline_2026-07-21.md`
+对照（勿与公开分混报）：
 
-## 已知限制
+| 场景 | relative L2 | 说明 |
+|---|---:|---|
+| 公开集主报（dualview_r2） | **0.035115** | 正式公开成绩 · v9 |
+| freeze_r9（历史 v8） | 0.035302 | 上一正式版本 |
+| sched_samp_r5 | 0.035725 | 历史主报 · v7 |
+| sched_samp_r3 | 0.035855 | 历史主报 |
+| sched_samp_r2 | 0.036092 | 历史主报 |
+| multistep_probe | 0.036576 | 历史主报 |
+| sq3b_freeze | 0.037520 | 历史主报 |
+| boostC / boostA | 0.037820 / 0.039612 | 轨迹中间点 |
+| 公开集 continue 基线 | 0.041835 | 历史中间点 |
+| continue3 零样本→公开集 | 0.411508 | 未重训，域偏移 |
+| 自建 v2 continue3（1000/128） | 0.005144 | 工程对照，非公开集 |
 
-- **正式路径**为 fused（`use_sufft=True`）；v1（CPU FFT）保留为对照与可微训练后备。
-- 本 SDK suFFT 仅导出 1D plan，2D 由两次 1D + plan 缓存拼成；fused 正确性 worst_rel ≈ `2.12e-7`（单角）/ `2.16e-7`（双角）。
-- FNO 当前用离线 NS-like 64×64；公开 NS HDF5 有网后替换。`ai4s-n` 勿与本区并发占 GPU。
+- 自建 v2 历史：150 epoch / 14400 step（768 划分）等见 `data_disclosure.md` 与归档包
+- Spectral idle **3.811 / 8.054 / 29.560 ms**（与 NS 数据无关）
+- 可视化：`results/figures/fno_ns_pred_vs_gt_2026-08-02.png` + sample_strip（对齐 public demo；字段见 `summary.fno_ns.visualization`）
+
+公开集 checkpoint 可复评；一键链：`scripts/run_public_ns64_autochain.sh`。
+
+### 3.4 FNO chain 状态
+
+2026-07-26 正式门禁（R7 host-seeded D2D 物化 + promote 后 ckpt）：
+
+- checkpoint chain vs CPU：相对误差 **4.758e-5**，通过 `1e-4`
+- 随机模型：**6.580e-5**，通过
+- 历史诊断：修复前曾出现 rel=`0.01655` / 未过门禁的 16.112 ms，**不得**作为正式性能
+
+脚本：`fno_ns/test_chain_cpu_supa_consistency.py`。
+
+### 3.5 FNO batch=16 性能
+
+2026-08-03 协议合规复测（freeze_r9 ckpt）：公开 NS64（1000/128）+ `fno_ns_public_demo.pt`；BIREN 单卡、64×64、batch=16、warmup=10、iters=50；chain 门禁 B=4 rel≈`8.80e-5` PASS；B=16 旁注 rel≈`9.55e-5` PASS。
+
+| scope | grid_points/s | samples/s | ms/sample | ms/batch | peak MB |
+|---|---:|---:|---:|---:|---:|
+| pure forward | 1,600,295.313 | 390.697 | 2.559528 | 40.952 | 202.2 |
+| with DataLoader | 1,439,739.645 | 351.499 | 2.844959 | 45.519 | 202.2 |
+
+脚本：`fno_ns/benchmark_fno_batch16.py`（默认 public）；日志：`results/run_logs/fno_batch16_benchmark_public_ns64_2026-08-03.md`。历史 v2 旁注可用 `--legacy-v2`。grid point 按单通道 `H×W` 计算。
+
+### 3.5b 训练吞吐（加分项）
+
+同量纲 `grid_points/s`，**明确包含** forward + relative-L2 loss + backward + Adam step。路径与提交 checkpoint 一致：CPU / `use_supa=False`。
+
+| metric | value |
+|---|---:|
+| grid_points/s | 34,711.585 |
+| samples/s | 8.475 |
+| ms/sample | 118.001 |
+| ms/batch (step) | 944.008 |
+
+脚本：`fno_ns/benchmark_train_throughput.py`；日志：`results/run_logs/fno_train_throughput_2026-07-25.md`。这不是推理 batch=16 主表。
+
+### 3.6 可视化
+
+`fno_ns/visualize.py` 生成：
+
+1. 主图：Input / GT / Pred / `|Error|` / 相对误差图（Pred/GT 共用对称色标）
+2. 多样本条带：best / median / worst（按 sample relative L2）
+
+图注含 `data`、`sample`、`target_t`、`sample_rel_L2`。实体写入 `results/figures/` 并同步 `demo/media/`。
+
+## 4. Agent / Skill
+
+- `development_log.md`：≥34 段编号记录（精品抽查 24–34），覆盖 kernel、性能、模型/超参、数据、可视化和 BIREN 平台适配
+- `skill.md`：SpectralConv + FNO 工作流及性能方法论
+- `skills/spectral_chain_optimization.md`：R3–R7 技术沉淀
+- `skills/fno_eval_protocol.md`：batch16 / chain 门禁 / 数据披露 / 训练吞吐
+- `skills/sol_gap_analysis.md` + `spectral_conv/bench_sol_proxy.py`：本地 SOL-style 差距分析（非官方 SOL）
+- 自动调优：`spectral_conv/tune.py` 已落地，`tune_results.json` 可跨进程加载
+
+## 5. 已知限制
+
+- FNO **精度主报**已切换公开 NS64；自建 v2 数字仅旁注，禁止混报。
+- FNO chain 的 SUPA-resident 输入需 correctness fallback；未通过一致性门禁的快速结果不作为正式性能。
+- SDK 仅导出 suFFT 1D plan，2D 由两次 1D + transpose 拼接；没有可用的 `sufftBuildPlan2d/Many` ABI；Spectral ms 已冻结（见 OPT_MASTER_PLAN）。
+- SpectralConv3d 是算子扩展，不是完整 3D FNO。
+- 单卡 GPU 禁止 f/n 并发测试；正式 perf 禁止与重训争用。

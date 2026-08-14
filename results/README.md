@@ -2,36 +2,35 @@
 
 | 路径 | 作用 |
 |------|------|
-| `run_logs/` | 命令行与评测日志 |
-| `figures/` | 误差曲线、流场对比等 |
-| `summary.json` | 机器可读指标（测试脚本写入） |
-| `phase_status.json` | Phase 状态机与资产清单 |
+| `summary.json` | **主报真源**（公开 L2 / Spectral formal） |
+| `phase_status.json` | Phase 状态机 |
+| `run_logs/CURRENT.md` | **现行指针**（新会话先读） |
+| `run_logs/` | 日志与计划卡（现行 / 历史并存；见 `FILE_CONVENTIONS.md`） |
+| `figures/` | 流场对比等（主展示用最新日期戳） |
+| `archives/` | 提交包快照（冻结，勿回写 live） |
+| `data_disclosure.md` / `experiment_matrix.md` | 数据口径与 KEEP/KILL |
+| `PPT技术总览_*.md` | 答辩叙事（文件名可旧，正文对齐现行） |
+
+规范全文：[`../FILE_CONVENTIONS.md`](../FILE_CONVENTIONS.md)
+
+## 现行 vs 历史（速查）
+
+| 现行 | 历史（勿当任务单） |
+|------|-------------------|
+| `CURRENT.md` · `OPT_WAVE_MULTIAGENT_PLAN_*` · `LOOP_PROCESS.md` | `OPT_MASTER` · `OPT_ROUND2…10` · `HANDOFF_*` |
+| `/workspace/评测报告_最新指标_*.md`（唯一） | 已删旧戳；archives 内旧报告 |
 
 ## Phase 维护
 
-每个开发 phase 结束后：
-
 ```bash
-cd /workspace/ai4s-n/submission
+cd /workspace/ai4s-f/submission
 ./scripts/maintain_assets.sh check <phase>
-# 回填 results.md / development_log / summary.json 业务字段后
-./scripts/maintain_assets.sh mark-done <phase>
+./scripts/maintain_assets.sh mark-done <phase>   # 校验路径后人工确认语义
+python3 skills/operator_opt_loop/run_loop.py --dry-run --strict
 ```
-
-`mark-done` 会：
-
-1. 校验本 phase 声明的资产路径存在
-2. 将 `phase_status.json` 中该 phase 标为 `done`，推进 `current_phase`
-3. 在 `summary.json.meta` 记录 `last_phase_marked`
-
-语义验收（相对误差、相对 L2、日志段数）仍由 Agent/人手确认；脚本不伪造指标。
 
 ## 官方文档引用
 
 - 选手手册：`/workspace/赛题文档/算子与模型赛道选手手册.md`
-- 写赛题前的环境与 GEMV 基准：手册 Part A「快速开始」
-
-## 环境基线（2026-07-21 已测）
-
-服务器环境已通过；各组件用途见 `AGENTS.md` / 上级 `results.md` / `summary.json.env.purpose`。  
-日志：`run_logs/env_baseline_2026-07-21.md`。Agent 默认进入 `spectral_accuracy`，勿无故重跑 GEMV 冒烟。
+- 官网提交规范：`/workspace/赛题文档/官网-赛道五-模型与算子详情页.md`
+- 队内：根 `AGENTS.md`（评测报告 / Agent 日志 / 官方资产 / OPT Loop）

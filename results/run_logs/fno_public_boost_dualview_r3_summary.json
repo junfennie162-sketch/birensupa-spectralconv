@@ -1,0 +1,19 @@
+{
+  "task": "fno_public_dualview",
+  "tag": "dualview_r3",
+  "baseline_test_l2": 0.035011906176805496,
+  "best_test_l2": 0.035011906176805496,
+  "gate": 0.03501497611179948,
+  "beat_gate": true,
+  "improved_vs_baseline": false,
+  "delta_vs_baseline": 0.0,
+  "epochs_ran": 1,
+  "lambda_cons": 0.2,
+  "lambda_delta": 0.32,
+  "lr": 2e-06,
+  "init_from": "/workspace/ai4s/submission/fno_ns/checkpoints/fno_ns_public_spec_ref_r2_best.pt",
+  "elapsed_sec": 97.5,
+  "checkpoint": null,
+  "log": "/workspace/ai4s/submission/results/run_logs/fno_public_dualview_r3_20260811_101032.log",
+  "promote": false
+}

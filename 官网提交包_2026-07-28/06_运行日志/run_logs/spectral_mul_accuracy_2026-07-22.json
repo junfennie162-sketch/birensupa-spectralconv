@@ -1,0 +1,5 @@
+{"task":"spectral_mul","mode":"case_log_begin"}
+{"case":"tiny_2x2","shape":"B2_Cin2_Cout3_m2x2","rel":5.68225325e-08,"threshold":1e-4,"passed":true}
+{"case":"small_8x8","shape":"B2_Cin4_Cout4_m8x8","rel":4.79096407e-08,"threshold":1e-4,"passed":true}
+{"case":"official_modes16","shape":"B4_Cin32_Cout64_m16x16","rel":8.63905711e-08,"threshold":1e-4,"passed":true}
+{"task":"spectral_mul","mode":"accuracy","passed_cases":3,"total_cases":3,"accuracy_ok":true}

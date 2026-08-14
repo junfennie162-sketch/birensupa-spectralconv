@@ -1,0 +1,775 @@
+{
+  "meta": {
+    "updated_at": "2026-07-29T14:27:02Z",
+    "last_phase_marked": "submit_gate",
+    "notes": "2026-07-25 protocol alignment complete. SpectralConv auto 3.818/8.014/29.343 ms (warmup=10, iters=100). FNO checkpoint L2\u22480.009516 on generated_ns_like_v2 (not public NS64)."
+  },
+  "env": {
+    "sdk": "/usr/local/birensupa/sdk/1.11.0.0.rc2",
+    "device": "supa",
+    "gpu": "Biren106B",
+    "torch": "2.9.0+cu128",
+    "torch_br": "imported_ok",
+    "cuda_available": false,
+    "supa_tensor_ok": true,
+    "brsw_set_env": true,
+    "brcc": true,
+    "verified_at": "2026-07-21",
+    "purpose": {
+      "sdk_env": "Compile/link SUPA and full torch_br runtime paths",
+      "brcc": "Build SpectralConv .su kernels",
+      "brsmi_gpu": "Single-card accuracy/perf and submission logs",
+      "torch_br_supa": "PyTorch Extension, FNO assembly, CPU reference compare",
+      "gemv_route1": "Optional SUPA/C++ path validated",
+      "gemv_route2": "Chosen formal path template validated; migrate to SpectralConv"
+    }
+  },
+  "gemv_baseline": {
+    "route1_supa_cpp": {
+      "command": "make run-accuracy SUPA_BASE=...",
+      "passed_cases": 3,
+      "total_cases": 3,
+      "accuracy_ok": true
+    },
+    "route2_torch_extension": {
+      "command": "./build.sh && python3 test_gemv_ext.py",
+      "ok": true,
+      "perf_4096x1024_avg_ms": 2.9404282569885254
+    }
+  },
+  "spectral_conv": {
+    "status": "accuracy_pass",
+    "rel_error": 2.1701555345060285e-07,
+    "threshold": 0.0001,
+    "cases": [
+      {
+        "case": "tiny_8x8",
+        "shape": "B2_Cin2_Cout3_8x8",
+        "modes": "2x2",
+        "max_abs": 2.9802322387695312e-08,
+        "max_rel": 4.67537856728397e-08,
+        "threshold": 0.0001,
+        "ok": true
+      },
+      {
+        "case": "small_32x32",
+        "shape": "B2_Cin4_Cout4_32x32",
+        "modes": "8x8",
+        "max_abs": 5.960464477539063e-08,
+        "max_rel": 1.1374232639616424e-07,
+        "threshold": 0.0001,
+        "ok": true
+      },
+      {
+        "case": "target_64x64",
+        "shape": "B2_Cin4_Cout4_64x64",
+        "modes": "12x12",
+        "max_abs": 8.195638656616211e-08,
+        "max_rel": 2.1701555345060285e-07,
+        "threshold": 0.0001,
+        "ok": true
+      }
+    ],
+    "perf": {
+      "status": "measured",
+      "config": {
+        "B": 4,
+        "C_in": 32,
+        "C_out": 64,
+        "modes": [
+          16,
+          16
+        ],
+        "warmup": 10,
+        "iters": 100,
+        "path": "auto",
+        "timing_scope": "CPU input through CPU output; synchronized wall clock"
+      },
+      "rows": [
+        {
+          "resolution": "64x64",
+          "forward_time_ms": 3.818,
+          "memory_MB": 225.3
+        },
+        {
+          "resolution": "128x128",
+          "forward_time_ms": 8.014,
+          "memory_MB": 253.3
+        },
+        {
+          "resolution": "256x256",
+          "forward_time_ms": 29.343,
+          "memory_MB": 353.3
+        }
+      ],
+      "measured_at": "2026-07-29T14:27:02Z"
+    }
+  },
+  "fno_ns": {
+    "status": "checkpoint_evaluation_pass",
+    "rel_l2": 0.008768199273617938,
+    "rel_l2_torch_path": 0.008768199913902208,
+    "fourier_layers": 4,
+    "resolution": 64,
+    "modes": 16,
+    "width": 32,
+    "t_in": 10,
+    "data": "generated_ns_like_v2",
+    "data_disclosure": "Self-generated NS-like v2; not public NS64. See results/data_disclosure.md.",
+    "n_train": 768,
+    "n_val": 0,
+    "n_test": 128,
+    "train_epochs": 150,
+    "batch_size": 8,
+    "optimizer_steps": 14400,
+    "seed": 20260722,
+    "checkpoint_meta": "fno_ns/checkpoints/checkpoint_meta.json",
+    "train_rel_l2_history": [
+      0.2831867868080735,
+      0.0756031902662168,
+      0.05806221331780156,
+      0.04776172634835044,
+      0.044407727352033056,
+      0.03742014220915735,
+      0.03386325105869522,
+      0.03176128697426369,
+      0.027983409430210788,
+      0.02526056708302349,
+      0.024324886966496706,
+      0.02308227102427433,
+      0.022050245005326968,
+      0.018826123928495992,
+      0.018127200736974675,
+      0.016938341471056145,
+      0.015323685249313712,
+      0.014345861602729807,
+      0.013202568128084144,
+      0.012184269978509596,
+      0.011410920337463418,
+      0.010920379019808024,
+      0.01028967023982356,
+      0.009616844414267689,
+      0.009242727751067529,
+      0.008768129763969531,
+      0.0085484517524795,
+      0.008285753428936005,
+      0.008160822297213599,
+      0.008081885995731378,
+      0.016628338334461052,
+      0.013020872875737647,
+      0.012892940295084069,
+      0.013329858193174005,
+      0.013377943774685264,
+      0.012221683340612799,
+      0.012112681307674697,
+      0.012076558739257356,
+      0.011976399555957565,
+      0.011695499260288974,
+      0.011072573252022266,
+      0.010930816662342599,
+      0.010977271769661456,
+      0.010665105713997036,
+      0.010009198022695879,
+      0.009247872609800348,
+      0.009345028093472743,
+      0.009117576972736666,
+      0.008897824843491739,
+      0.008513486003115153,
+      0.008117279163949812,
+      0.008007014024769887,
+      0.007764695765217766,
+      0.0072209055166846765,
+      0.007116928395892804,
+      0.0068943863540577395,
+      0.006601925852010027,
+      0.0064665018289815634,
+      0.006329409855728348,
+      0.006090244870089616,
+      0.02008127969262811,
+      0.016987336256230872,
+      0.015420573579225069,
+      0.0156203441923329,
+      0.013828225598748153,
+      0.012903073239916315,
+      0.013668478097921858,
+      0.012527460610726848,
+      0.011937927056957657,
+      0.01200844244643425,
+      0.012185197779520726,
+      0.01225771886917452,
+      0.011539269170801466,
+      0.010911378466213742,
+      0.010311254251670713,
+      0.010234158500679769,
+      0.009796951072833812,
+      0.009741930048524713,
+      0.009414219510896752,
+      0.00909294476635599,
+      0.008900542753205324,
+      0.008557338180253282,
+      0.008042681865238896,
+      0.008308757761066468,
+      0.008140771722537465,
+      0.007692789595845777,
+      0.007356504269409925,
+      0.007341203177929856,
+      0.007142963387498942,
+      0.006788887675308312,
+      0.006662846382823773,
+      0.006321733696192193,
+      0.006244465141207911,
+      0.006132367901348819,
+      0.0059011640793566284,
+      0.005740049896606554,
+      0.005647518211238396,
+      0.005476580695055115,
+      0.005364469199169737,
+      0.005209887070426096,
+      0.005133300456994523,
+      0.005085159980808385,
+      0.004966309085527125,
+      0.0049427637228897465,
+      0.004862192916334607,
+      0.004806195497318792,
+      0.004764282081547814,
+      0.004729240038917244,
+      0.004706329700032559,
+      0.004688889440634132,
+      0.006206647914950736,
+      0.006046646536560729,
+      0.005726366488185401,
+      0.005760011918027885,
+      0.0056644010813518735,
+      0.005706541788337442,
+      0.005596125018200837,
+      0.005528302509143638,
+      0.005562870219970743,
+      0.005472366504060726,
+      0.005356517178976598,
+      0.005183497177010092,
+      0.005097577047611897,
+      0.005208269683256124,
+      0.005133751081302762,
+      0.004883718516794033,
+      0.0048857675671267016,
+      0.004752563957784635,
+      0.0046681814031520235,
+      0.004574375382314126,
+      0.004594509438902605,
+      0.0045240146209835075,
+      0.004466237653105054,
+      0.0043788197823838955,
+      0.0043066757449802635,
+      0.00423635571981625,
+      0.004190935714480777,
+      0.004178567743413926,
+      0.004112790071909937,
+      0.004058508396459122,
+      0.004024221848036784,
+      0.003989915797622719,
+      0.003950662515611232,
+      0.003925971977878362,
+      0.003895106005074922,
+      0.003879227001258793,
+      0.003863368127592063,
+      0.0038430572046005787,
+      0.0038299756051856093,
+      0.0038265274173075645
+    ],
+    "figures": [
+      "results/figures/fno_ns_pred_vs_gt_2026-07-21.png",
+      "results/figures/fno_ns_pred_vs_gt_2026-07-22.png",
+      "results/figures/fno_ns_pred_vs_gt_2026-07-23.png",
+      "results/figures/fno_ns_pred_vs_gt_2026-07-25.png",
+      "results/figures/fno_ns_sample_strip_2026-07-25.png",
+      "results/figures/fno_ns_pred_vs_gt_2026-07-26.png",
+      "results/figures/fno_ns_sample_strip_2026-07-26.png"
+    ],
+    "checkpoint": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_demo.pt",
+    "resume_extra_epochs": 50,
+    "supa_chain_2026_07_24_r4": {
+      "config": {
+        "B": 4,
+        "HxW": "64x64",
+        "width": 32,
+        "modes": 16,
+        "n_layers": 4
+      },
+      "iters": 50,
+      "warmup": 10,
+      "median_ms": 16.092,
+      "min_ms": 16.022,
+      "peak_device_mb": 266.7,
+      "vs_baseline_cpu": null,
+      "vs_n_supply_chain_2026_07_24": {
+        "n_full_median_ms": 15.452,
+        "delta_vs_n": "+0.64 ms (4%)"
+      },
+      "vs_f_supply_chain_2026_07_23_r3": {
+        "r3_median_ms": 49.118,
+        "speedup": 3.05,
+        "delta_ms": -33.026
+      },
+      "run_log": "results/run_logs/fno_supa_chain_2026-07-24.md"
+    },
+    "supa_chain_2026_07_24_r5": {
+      "config": {
+        "B": 4,
+        "HxW": "64x64",
+        "width": 32,
+        "modes": 16,
+        "n_layers": 4
+      },
+      "iters": 50,
+      "warmup": 10,
+      "median_ms": 16.099,
+      "min_ms": 15.998,
+      "peak_device_mb": 266.7,
+      "rebench_at": "2026-07-24T12:50Z",
+      "delta_vs_r4_median_ms": "+0.007 ms (within noise)",
+      "fix_landed": "use_gn_substitute double-norm path removed; identical L2 (0.009516)"
+    },
+    "supa_chain_layer_profile_2026_07_24_r5": {
+      "tool": "fno_ns/bench_f_fno_chain_layer_profile.py",
+      "per_layer_spectral_median_ms": 2.85,
+      "per_layer_residual_median_ms": 0.71,
+      "sum_layers_median_ms": 14.152,
+      "chain_full_median_ms": 16.098,
+      "implication": "spectral kernel dominates ~80% of per-layer time; SDK ABI lacks stride-aware FFT, so remaining wins need .su kernel work (out of scope)"
+    },
+    "chain_consistency": {
+      "status": "pass",
+      "threshold": 0.0001,
+      "random_model": {
+        "relative_error": 6.580167246283963e-05,
+        "threshold": 0.0001,
+        "finite": true,
+        "ok": true,
+        "input_shape": [
+          4,
+          10,
+          64,
+          64
+        ]
+      },
+      "checkpoint_model": {
+        "relative_error": 5.087365934741683e-05,
+        "threshold": 0.0001,
+        "finite": true,
+        "ok": true,
+        "input_shape": [
+          4,
+          10,
+          64,
+          64
+        ]
+      },
+      "fallback": "SUPA-resident fused input D2D-copied into host-seeded SUPA buffer before suFFT",
+      "measured_at": "2026-07-29T03:28:53Z"
+    },
+    "perf_batch16": {
+      "status": "measured",
+      "measured_at": "2026-07-29T02:58:37Z",
+      "device": "Biren106B / supa",
+      "data": "generated_ns_like_v2",
+      "data_disclosure": "self-generated NS-like v2; not public NS64",
+      "config": {
+        "batch_size": 16,
+        "height": 64,
+        "width": 64,
+        "warmup": 10,
+        "iters": 50,
+        "seed": 20260722,
+        "dtype": "float32"
+      },
+      "chain_consistency": {
+        "relative_error": 5.03177652717568e-05,
+        "threshold": 0.0001,
+        "finite": true,
+        "ok": true,
+        "input_shape": [
+          16,
+          10,
+          64,
+          64
+        ]
+      },
+      "pure_forward": {
+        "grid_points_per_second": 1359951.0912287692,
+        "samples_per_second": 332.0193093820237,
+        "milliseconds_per_sample": 3.0118730198591948,
+        "forward_milliseconds_per_batch": 48.189968317747116,
+        "peak_memory_MB": 178.1298828125
+      },
+      "with_dataloader": {
+        "grid_points_per_second": 1322612.06932384,
+        "samples_per_second": 322.90333723726565,
+        "milliseconds_per_sample": 3.0969020281918347,
+        "forward_milliseconds_per_batch": 49.550432451069355,
+        "peak_memory_MB": 178.1298828125
+      }
+    },
+    "visualization": {
+      "shared_colorbar_for_pred_gt": true,
+      "absolute_and_relative_error_maps": true,
+      "sample_index": 0,
+      "target_time_step": 10,
+      "sample_relative_l2": 0.006284742616117001,
+      "data": "generated_ns_like_v2",
+      "figure": "results/figures/fno_ns_pred_vs_gt_2026-07-26.png",
+      "demo_copy": "demo/media/fno_ns_pred_vs_gt_2026-07-26.png",
+      "sample_strip": "results/figures/fno_ns_sample_strip_2026-07-26.png",
+      "sample_strip_records": [
+        {
+          "label": "best",
+          "sample_index": 6,
+          "sample_relative_l2": 0.003424228139618434
+        },
+        {
+          "label": "median",
+          "sample_index": 5,
+          "sample_relative_l2": 0.006959331048052378
+        },
+        {
+          "label": "worst",
+          "sample_index": 1,
+          "sample_relative_l2": 0.013393692076595654
+        }
+      ]
+    },
+    "train_throughput": {
+      "status": "measured",
+      "measured_at": "2026-07-25T13:06:25Z",
+      "bonus": true,
+      "scope": "one optimizer step = forward + relative-L2 loss + backward + Adam step",
+      "device": "cpu",
+      "path": "use_supa=False (matches submitted checkpoint training path)",
+      "data": "synthetic_random_batches_for_throughput_only",
+      "config": {
+        "batch_size": 8,
+        "height": 64,
+        "width": 64,
+        "t_in": 10,
+        "warmup": 10,
+        "iters": 50,
+        "seed": 20260722,
+        "learning_rate": 0.0005,
+        "weight_decay": 0.0001,
+        "dtype": "float32"
+      },
+      "last_loss": 0.025777962058782578,
+      "metrics": {
+        "grid_points_per_second": 34711.58516155643,
+        "samples_per_second": 8.474508096083113,
+        "milliseconds_per_sample": 118.00094927777536,
+        "step_milliseconds_per_batch": 944.0075942222029,
+        "peak_memory_MB": null,
+        "note": "CPU training path; peak device MB not applicable"
+      }
+    },
+    "official_100ep": {
+      "best_test_l2": 0.005488337017595768,
+      "total_steps": 6300,
+      "gate": "\u63a8\u8350",
+      "checkpoint": "fno_ns/checkpoints/fno_ns_official_best.pt",
+      "promoted_to_demo": true,
+      "data": "generated_ns_like_v2"
+    },
+    "relative_l2": 0.008534692373359576,
+    "l2_note": "generated_ns_like_v2; sidecar promote 2026-07-29"
+  },
+  "official_baseline": {
+    "status": "pass",
+    "device": "cpu",
+    "supa_fft_ok": false,
+    "perf": [
+      {
+        "resolution": "64x64",
+        "forward_time_ms": "74.142",
+        "memory_MB": "0.0"
+      },
+      {
+        "resolution": "128x128",
+        "forward_time_ms": "89.000",
+        "memory_MB": "0.0"
+      },
+      {
+        "resolution": "256x256",
+        "forward_time_ms": "295.983",
+        "memory_MB": "0.0"
+      }
+    ],
+    "run_log": "/workspace/ai4s-f/submission/results/run_logs/official_baseline_2026-07-21.md"
+  },
+  "optimization": {
+    "p0_baseline": {
+      "status": "done",
+      "run_log": "/workspace/ai4s-f/submission/results/run_logs/opt_baseline_2026-07-22.md",
+      "segment_rows": [
+        {
+          "path": "v1_cpu_fft",
+          "resolution": "64x64",
+          "fft_ms": 0.081,
+          "h2d_mul_d2h_ms": 1.005,
+          "ifft_ms": 3.446,
+          "note": "h2d_mul_d2h includes spectral_mul_supa full bridge"
+        },
+        {
+          "path": "sufft_with_cpu_bridge",
+          "resolution": "64x64",
+          "rfft_ms": 1.291,
+          "bridge_mul_ms": 26.242,
+          "irfft_ms": 17.367,
+          "note": "bridge_mul = spectrum D2H + mul H2D/D2H + spectrum H2D"
+        },
+        {
+          "path": "v1_cpu_fft",
+          "resolution": "128x128",
+          "fft_ms": 3.179,
+          "h2d_mul_d2h_ms": 4.168,
+          "ifft_ms": 10.07,
+          "note": "h2d_mul_d2h includes spectral_mul_supa full bridge"
+        },
+        {
+          "path": "sufft_with_cpu_bridge",
+          "resolution": "128x128",
+          "rfft_ms": 11.4,
+          "bridge_mul_ms": 14.139,
+          "irfft_ms": 12.865,
+          "note": "bridge_mul = spectrum D2H + mul H2D/D2H + spectrum H2D"
+        },
+        {
+          "path": "v1_cpu_fft",
+          "resolution": "256x256",
+          "fft_ms": 57.832,
+          "h2d_mul_d2h_ms": 14.023,
+          "ifft_ms": 161.429,
+          "note": "h2d_mul_d2h includes spectral_mul_supa full bridge"
+        },
+        {
+          "path": "sufft_with_cpu_bridge",
+          "resolution": "256x256",
+          "rfft_ms": 12.669,
+          "bridge_mul_ms": 54.311,
+          "irfft_ms": 28.93,
+          "note": "bridge_mul = spectrum D2H + mul H2D/D2H + spectrum H2D"
+        }
+      ],
+      "frozen_v1": [
+        {
+          "resolution": "64x64",
+          "forward_time_ms": 14.064,
+          "memory_MB": 4.8
+        },
+        {
+          "resolution": "128x128",
+          "forward_time_ms": 23.033,
+          "memory_MB": 4.8
+        },
+        {
+          "resolution": "256x256",
+          "forward_time_ms": 214.949,
+          "memory_MB": 4.8
+        }
+      ],
+      "frozen_sufft": null
+    },
+    "p1_fused": {
+      "status": "done",
+      "formal_api": "spectral_conv2d_fused",
+      "note": "suFFT R2C + on-device spectral_mul + suFFT C2R; spectrum stays on SUPA"
+    },
+    "p2_dual_corner": {
+      "status": "done",
+      "rel_error": 2.1582199886236637e-07,
+      "fno_shares_fused": true
+    },
+    "p3_perf_freeze": {
+      "status": "done",
+      "run_log": "/workspace/ai4s-f/submission/results/run_logs/opt_perf_freeze_2026-07-22.md",
+      "formal_path": "spectral_conv2d_fused",
+      "rows_formal": [
+        {
+          "resolution": "64x64",
+          "forward_time_ms": 6.252,
+          "memory_MB": 36.9
+        },
+        {
+          "resolution": "128x128",
+          "forward_time_ms": 15.944,
+          "memory_MB": 133.1
+        },
+        {
+          "resolution": "256x256",
+          "forward_time_ms": 87.605,
+          "memory_MB": 517.5
+        }
+      ],
+      "micro_opt_stop": "gain_below_5pct_frozen"
+    },
+    "p4_backward": {
+      "status": "done",
+      "worst_grad_rel": 6.252869866330002e-08
+    },
+    "p6_3d": {
+      "status": "done",
+      "worst_rel": 1.0731816502129732e-07
+    },
+    "p5_materials": {
+      "status": "done_refreshed_2026_07_23",
+      "fno_rel_l2": 0.00951623567380011
+    },
+    "p7_pack_regress": {
+      "status": "done",
+      "packed_to": "/workspace/ai4s/submission",
+      "run_tests": "all",
+      "ok": true,
+      "at": "2026-07-22T11:37:44Z"
+    },
+    "catchup_n_2026_07_23": {
+      "status": "done",
+      "phases": [
+        "baseline",
+        "v1_dual_sync",
+        "param_cache",
+        "fused_to_cpu",
+        "fno_eval",
+        "rebench_docs"
+      ],
+      "dual_corner_auto_ms": [
+        {
+          "resolution": "64x64",
+          "forward_time_ms": 12.995
+        },
+        {
+          "resolution": "128x128",
+          "forward_time_ms": 15.892
+        },
+        {
+          "resolution": "256x256",
+          "forward_time_ms": 87.522
+        }
+      ],
+      "device_256_ms": 41.538,
+      "fno_rel_l2_ckpt_eval": 0.020288686268031597,
+      "fno64_forward_ms_batch8": 105.093,
+      "vs_n_auto_ms": [
+        13.859,
+        29.041,
+        75.337
+      ],
+      "run_logs": [
+        "results/run_logs/opt_catchup_baseline_2026-07-23.md",
+        "results/run_logs/opt_catchup_phase123_2026-07-23.md",
+        "results/run_logs/opt_catchup_phase4_fno_2026-07-23.md",
+        "results/run_logs/opt_catchup_phase5_dual_2026-07-23.md",
+        "results/run_logs/spectral_sol_style_perf_2026-07-23.md"
+      ]
+    },
+    "catchup_256_buffers_2026_07_23": {
+      "status": "done",
+      "dual_corner_auto_ms": [
+        {
+          "resolution": "64x64",
+          "forward_time_ms": 13.044
+        },
+        {
+          "resolution": "128x128",
+          "forward_time_ms": 16.07
+        },
+        {
+          "resolution": "256x256",
+          "forward_time_ms": 62.502
+        }
+      ],
+      "device_256_ms": 41.483,
+      "run_log": "results/run_logs/opt_catchup_256_buffers_2026-07-23.md"
+    },
+    "standards_2026_07_23": {
+      "status": "done",
+      "focus": [
+        "fno_l2_25pct",
+        "refresh_perf_materials",
+        "agent_log"
+      ],
+      "fno_rel_l2": 0.00951623567380011,
+      "fno_rel_l2_prev": 0.024844391271471977,
+      "dual_corner_auto_ms": [
+        {
+          "resolution": "64x64",
+          "forward_time_ms": 12.077
+        },
+        {
+          "resolution": "128x128",
+          "forward_time_ms": 15.969
+        },
+        {
+          "resolution": "256x256",
+          "forward_time_ms": 79.041
+        }
+      ],
+      "device_256_ms": 41.487,
+      "run_logs": [
+        "results/run_logs/fno_forward_2026-07-23.md",
+        "results/run_logs/opt_standards_perf_2026-07-23.md"
+      ],
+      "figure": "results/figures/fno_ns_pred_vs_gt_2026-07-23.png"
+    },
+    "phase256_restore_2026_07_23": {
+      "status": "done",
+      "focus": [
+        "restore_deleted_sources",
+        "256_auto_perf",
+        "no_regression_64_128"
+      ],
+      "baseline_256_auto_ms": 85.59,
+      "after_256_auto_ms_median": 75.998,
+      "after_256_auto_ms_min": 74.471,
+      "after_64_auto_ms_range": [
+        12.998,
+        15.965
+      ],
+      "after_128_auto_ms_range": [
+        14.998,
+        23.993
+      ],
+      "changes": [
+        "_OUT_FREQ_CACHE (SUPA device) + _HOST_OUT_CACHE (pin_memory) for fused path",
+        "_OUT_FREQ_CPU_CACHE for v1 CPU complex spectrum buffer",
+        "fused: out_freq zero_() + reuse; final host.copy_(y) -> host.clone()",
+        "v1: out_freq zero_() + reuse instead of torch.zeros"
+      ],
+      "rebench_iters": 100,
+      "run_logs": [
+        "results/run_logs/spectral_perf_2026-07-23.md",
+        "results/run_logs/opt_segments_round2_2026-07-23.md"
+      ]
+    },
+    "phase256_round2_2026_07_23": {
+      "status": "done",
+      "focus": [
+        "64_auto_fused",
+        "128_auto_fused",
+        "256_reverse_partner"
+      ],
+      "after_64_ms": {
+        "min": 12.06,
+        "median": 13.5,
+        "partner": 11.998
+      },
+      "after_128_ms": {
+        "min": 14.11,
+        "median": 15.95,
+        "partner": 14.156
+      },
+      "after_256_ms": {
+        "min": 73.42,
+        "median": 75.33,
+        "partner": 75.358
+      },
+      "changes": [
+        "resolve_use_sufft threshold >=64 (was >=256)"
+      ]
+    }
+  }
+}

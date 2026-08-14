@@ -1,0 +1,156 @@
+{
+  "updated_at": "2026-08-07T13:48:19Z",
+  "dry_run": true,
+  "strict": true,
+  "public_ns64": {
+    "relative_l2": 0.03511497611179948,
+    "promoted_tag": "dualview_r2",
+    "checkpoint": "fno_ns/checkpoints/fno_ns_public_demo.pt",
+    "baseline": 0.03511497611179948,
+    "gate": 0.035014976111799476,
+    "next_probe_tag": "sched_samp_r8"
+  },
+  "engineering": {
+    "spectral_rel_error": 2.1701555345060285e-07,
+    "chain_ckpt_rel": 4.7575431381119415e-05,
+    "batch16_gps": 1600295.3125298938
+  },
+  "spectral_rows": [
+    {
+      "resolution": "64x64",
+      "forward_time_ms": 3.811,
+      "memory_MB": 225.3
+    },
+    {
+      "resolution": "128x128",
+      "forward_time_ms": 8.054,
+      "memory_MB": 253.3
+    },
+    {
+      "resolution": "256x256",
+      "forward_time_ms": 29.56,
+      "memory_MB": 353.3
+    }
+  ],
+  "expected_ms": {
+    "64x64": 3.811,
+    "128x128": 8.054,
+    "256x256": 29.56
+  },
+  "required_assets": {
+    "summary": true,
+    "phase_status": true,
+    "readme": true,
+    "results_md": true,
+    "skill_md": true,
+    "submission_checklist": true,
+    "development_log": true,
+    "brsmi_snapshot": true,
+    "official_alignment": true,
+    "current_pointer": true,
+    "file_conventions": true,
+    "public_demo_ckpt": true,
+    "opt_round_latest": true,
+    "eval_report_single": true
+  },
+  "narrative_artifacts": {
+    "opt_master": true,
+    "innovation_plan": true,
+    "sol_gap": true,
+    "experiment_matrix": true,
+    "supa_diff_story": true,
+    "fused_segments": true,
+    "tune_disclaimer": true,
+    "multires_story": true,
+    "extension_showcase": true,
+    "audit_card": true,
+    "opt_round2": true,
+    "opt_round3": true,
+    "opt_round4": true,
+    "opt_round5": true,
+    "opt_round6": true,
+    "opt_round7": true
+  },
+  "consistency": {
+    "public_l2_present": true,
+    "public_l2_matches_summary_fields": true,
+    "promoted_tag_present": true,
+    "formal_ms_board": true,
+    "chain_ckpt_under_1e-4": true,
+    "spectral_rel_under_1e-4": true,
+    "phase_submit_gate_done": true
+  },
+  "opt_round_latest": {
+    "exists": true,
+    "path": "results/run_logs/OPT_ROUND10_PLAN_2026-08-03.md",
+    "round": 10
+  },
+  "eval_report": {
+    "count": 1,
+    "single": true,
+    "latest": "/workspace/评测报告_最新指标_2026-08-06_174400.md"
+  },
+  "agent_records": 40,
+  "precision_posture": "stopped_after_round7_no_signal",
+  "process_sop": [
+    {
+      "id": "P0",
+      "name": "环境与单卡",
+      "rule": "source brsw_set_env; 同时只跑一个 SUPA/GPU 任务"
+    },
+    {
+      "id": "P1",
+      "name": "读主报",
+      "rule": "只读 summary.json；勿把 v2 / SOL / tune 当正式得分"
+    },
+    {
+      "id": "P2",
+      "name": "精度探针（可选）",
+      "rule": "nohup 后台；--stop-on-gate；epochs≤4；patience≤2；禁长 AwaitShell；秒查 /tmp 日志"
+    },
+    {
+      "id": "P3",
+      "name": "gate 裁决",
+      "rule": "best<gate → promote+visualize；近失/NO_SIGNAL → 停精度或换机制"
+    },
+    {
+      "id": "P4",
+      "name": "护栏",
+      "rule": "accuracy / chain；勿默认 test_perf 覆写 formal ms"
+    },
+    {
+      "id": "P5",
+      "name": "材料闭环",
+      "rule": "checklist + Agent 日志段 + 唯一评测报告换戳；maintain check"
+    },
+    {
+      "id": "P6",
+      "name": "合入",
+      "rule": "稳定文件 sync ai4s；有 promote 再 pack"
+    }
+  ],
+  "probe_cmd": "cd fno_ns && nohup python3 train_public_sched_sampling.py --tag sched_samp_r8 --baseline 0.0351149761118 --gate 0.0350149761118 --epochs 4 --early-stop-patience 2 --stop-on-gate > /tmp/sched_samp_r8.log 2>&1 &",
+  "next_actions": [
+    "python3 skills/operator_opt_loop/run_loop.py --dry-run --strict",
+    "./scripts/maintain_assets.sh check submit_gate",
+    "精度线默认停：仅当有新机制（非同构 deepen）再用 probe_cmd；否则走材料/答辩"
+  ],
+  "red_lines": [
+    "禁止把 SOL/proxy/tune median 写成正式得分句",
+    "禁止无争用证明时重跑 test_perf 写 summary.spectral_conv.perf",
+    "禁止长 AwaitShell 挂起训练；用 nohup + cat 秒查",
+    "禁止 f/n 并发占同一张 GPU",
+    "禁止未破 gate 的探针编入评测报告正式 v 号"
+  ],
+  "suggested_gates": [
+    "cd spectral_conv && python3 test_accuracy.py",
+    "cd fno_ns && python3 test_chain_cpu_supa_consistency.py",
+    "./scripts/maintain_assets.sh check submit_gate"
+  ],
+  "pass": {
+    "required_assets": true,
+    "consistency": true,
+    "narrative_artifacts": true,
+    "all_hard": true
+  }
+}

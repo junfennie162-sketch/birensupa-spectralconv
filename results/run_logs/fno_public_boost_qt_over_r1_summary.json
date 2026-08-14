@@ -1,0 +1,22 @@
+{
+  "task": "fno_public_qt_oversample",
+  "tag": "qt_over_r1",
+  "baseline_test_l2": 0.035191548988223076,
+  "best_test_l2": 0.035191548988223076,
+  "gate": 0.03512327123209834,
+  "beat_gate": false,
+  "improved_vs_baseline": false,
+  "delta_vs_baseline": 0.0,
+  "epochs_ran": 4,
+  "qt_power": 1.5,
+  "lambda_pf": 0.6,
+  "lambda_delta": 0.4,
+  "hf_weight": 0.15,
+  "lr": 3e-06,
+  "freeze_spectral": true,
+  "init_from": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_public_pf_delta_r1_best.pt",
+  "elapsed_sec": 547.8,
+  "checkpoint": null,
+  "log": "/workspace/ai4s-f/submission/results/run_logs/fno_public_qt_over_r1_20260806_160356.log",
+  "promote": false
+}

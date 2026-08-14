@@ -1,0 +1,8 @@
+{
+  "stage": "done",
+  "best": 0.037519834004342556,
+  "round": 4,
+  "updated_at": "2026-08-01T14:49:07Z",
+  "stop_reason": "sq4a_cont no promote (Δ=0); user requested finish; killed sq4b mid-run; skip sq4c; enter P3",
+  "start": 0.0378204844892025
+}

@@ -1,6 +1,6 @@
 # Official SpectralConv baseline (PyTorch reference)
 
-- time_utc: 2026-07-21T13:46:32Z
+- time_utc: 2026-07-21T13:40:14Z
 - baseline_device: cpu
 - correctness_ok: True
 - supa_fft_probe_ok: False
@@ -22,16 +22,16 @@
     128,
     128
   ],
-  "output_min": -0.0028968690894544125,
-  "output_max": 0.0026407665573060513,
+  "output_min": -0.00282877404242754,
+  "output_max": 0.002808363176882267,
   "grad_shape": [
     4,
     32,
     128,
     128
   ],
-  "grad_min": 0.014072812162339687,
-  "grad_max": 0.017789768055081367,
+  "grad_min": 0.014115295372903347,
+  "grad_max": 0.017278257757425308,
   "modes": [
     16,
     16
@@ -43,9 +43,9 @@
 
 | 分辨率 | 前向耗时 (ms) | 显存 (MB) |
 |---|---:|---:|
-| 64x64 | 72.107 | 0.0 |
-| 128x128 | 89.973 | 0.0 |
-| 256x256 | 301.008 | 0.0 |
+| 64x64 | 74.142 | 0.0 |
+| 128x128 | 89.000 | 0.0 |
+| 256x256 | 295.983 | 0.0 |
 
 ## SUPA torch.fft probe
 ```json
@@ -58,4 +58,4 @@
 }
 ```
 
-Artifacts: `/workspace/ai4s-n/submission/results/run_logs/official_baseline_2026-07-21.json`
+Artifacts: `/workspace/ai4s-f/submission/results/run_logs/official_baseline_2026-07-21.json`

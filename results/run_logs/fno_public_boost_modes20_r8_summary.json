@@ -1,0 +1,20 @@
+{
+  "task": "fno_public_ns64_boost",
+  "tag": "modes20_r8",
+  "data_source": "file:navier_stokes_v1e-3_N1200_T20.pt",
+  "baseline_test_l2": 0.2144603468477726,
+  "best_test_l2": 0.03718147613108158,
+  "residual": true,
+  "augment": true,
+  "hf_weight": 0.35,
+  "freeze_spectral": false,
+  "frozen_spectral_params": 0,
+  "epochs": 120,
+  "lr": 0.0002,
+  "weight_decay": 0.0001,
+  "elapsed_sec": 11968.9,
+  "checkpoint": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_public_modes20_r8_best.pt",
+  "improved": true,
+  "delta_l2": 0.17727887071669102,
+  "log": "/workspace/ai4s-f/submission/results/run_logs/fno_public_boost_20260802_223158.log"
+}

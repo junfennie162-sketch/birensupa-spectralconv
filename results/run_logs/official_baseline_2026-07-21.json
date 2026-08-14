@@ -1,6 +1,6 @@
 {
   "task": "official_spectral_conv_baseline",
-  "time_utc": "2026-07-21T13:46:32Z",
+  "time_utc": "2026-07-21T13:40:14Z",
   "correctness": {
     "ok": true,
     "device": "cpu",
@@ -16,16 +16,16 @@
       128,
       128
     ],
-    "output_min": -0.0028968690894544125,
-    "output_max": 0.0026407665573060513,
+    "output_min": -0.00282877404242754,
+    "output_max": 0.002808363176882267,
     "grad_shape": [
       4,
       32,
       128,
       128
     ],
-    "grad_min": 0.014072812162339687,
-    "grad_max": 0.017789768055081367,
+    "grad_min": 0.014115295372903347,
+    "grad_max": 0.017278257757425308,
     "modes": [
       16,
       16
@@ -34,17 +34,17 @@
   "performance": [
     {
       "resolution": "64x64",
-      "forward_time_ms": "72.107",
+      "forward_time_ms": "74.142",
       "memory_MB": "0.0"
     },
     {
       "resolution": "128x128",
-      "forward_time_ms": "89.973",
+      "forward_time_ms": "89.000",
       "memory_MB": "0.0"
     },
     {
       "resolution": "256x256",
-      "forward_time_ms": "301.008",
+      "forward_time_ms": "295.983",
       "memory_MB": "0.0"
     }
   ],

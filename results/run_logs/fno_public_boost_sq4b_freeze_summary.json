@@ -1,0 +1,10 @@
+{
+  "task": "fno_public_ns64_boost",
+  "tag": "sq4b_freeze",
+  "status": "aborted",
+  "baseline_test_l2": 0.037519834004342556,
+  "best_test_l2": 0.037519834004342556,
+  "improved": false,
+  "delta_l2": 0.0,
+  "note": "killed mid-run by user request to finish; epoch~4 test>best"
+}

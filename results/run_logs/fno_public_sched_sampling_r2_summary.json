@@ -1,0 +1,18 @@
+{
+  "task": "fno_public_sched_sampling_r2",
+  "tag": "sched_samp_r2",
+  "baseline_test_l2": 0.03657576162368059,
+  "best_test_l2": 0.03609233861789107,
+  "gate": 0.03647576162368059,
+  "beat_gate": true,
+  "improved_vs_baseline": true,
+  "delta_vs_baseline": 0.00048342300578951836,
+  "epochs_ran": 8,
+  "p_ar_max": 0.35,
+  "lr": 8e-06,
+  "elapsed_sec": 1832.4,
+  "checkpoint": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_public_sched_samp_r2_best.pt",
+  "log": "/workspace/ai4s-f/submission/results/run_logs/fno_public_sched_samp_r2_20260802_083516.log",
+  "promote": true,
+  "promoted_test_l2": 0.03585514333099127
+}

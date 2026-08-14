@@ -1,0 +1,20 @@
+{
+  "task": "fno_public_sched_sampling",
+  "tag": "sched_samp_r4",
+  "baseline_test_l2": 0.03585514333099127,
+  "best_test_l2": 0.03581237,
+  "gate": 0.03575514333099127,
+  "beat_gate": false,
+  "improved_vs_baseline": true,
+  "delta_vs_baseline": 4.277333099126507e-05,
+  "epochs_ran": 2,
+  "epochs_planned": 10,
+  "stopped_reason": "user_fast_path_stop_near_miss",
+  "p_ar_max": 0.55,
+  "soft_alpha_max": 0.0,
+  "lr": 3e-06,
+  "checkpoint": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_public_sched_samp_r4_best.pt",
+  "log": "/tmp/sched_samp_r4.txt",
+  "promote": false,
+  "note": "ep1 best=0.035812 improved vs r3 but above gate 0.035755; skip soft/geom; keep r3 as formal main."
+}

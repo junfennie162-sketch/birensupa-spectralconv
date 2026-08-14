@@ -1,0 +1,18 @@
+{
+  "updated_at": "2026-07-31T06:07:59Z",
+  "data_source": "file:navier_stokes_v1e-3_N1200_T20.pt",
+  "data_shape": [
+    1200,
+    20,
+    64,
+    64
+  ],
+  "ckpt": "checkpoints/fno_ns_demo.pt",
+  "promoted_tag": "continue3",
+  "ckpt_trained_on": "generated_ns_like_v2",
+  "ckpt_official_l2_on_v2": 0.0051438145455904305,
+  "public_l2_randperm_1000_128": 0.4115080125629902,
+  "public_l2_contig_last128": 0.4185270369052887,
+  "elapsed_s": 10.055079460144043,
+  "note": "zero-shot: demo trained on generated_ns_like_v2, evaluated on public NS64"
+}

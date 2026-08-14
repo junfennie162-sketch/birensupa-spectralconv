@@ -1,0 +1,20 @@
+{
+  "stages": [
+    {
+      "tag": "qt_over_r1",
+      "best_init": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_public_pf_delta_r1_best.pt",
+      "l2": 0.035191548988223076
+    },
+    {
+      "tag": "last_thaw_r1",
+      "best_init": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_public_last_thaw_r1_best.pt",
+      "l2": 0.03516507986932993
+    },
+    {
+      "tag": "dualview_r1",
+      "best_init": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_public_dualview_r1_best.pt",
+      "l2": 0.035160028375685215
+    }
+  ],
+  "gate": 0.03512327123209834
+}

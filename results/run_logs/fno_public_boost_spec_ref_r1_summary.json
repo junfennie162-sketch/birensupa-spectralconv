@@ -1,0 +1,14 @@
+{
+  "task": "fno_public_spectral_refiner_lite",
+  "tag": "spec_ref_r1",
+  "baseline_test_l2": 0.03511497611179948,
+  "best_test_l2": 0.035026549361646175,
+  "gate": 0.03501497611179948,
+  "beat_gate": false,
+  "mix_l2": 0.35,
+  "sob_alpha": 1.0,
+  "epochs_ran": 14,
+  "elapsed_sec": 1058.5,
+  "checkpoint": "/workspace/ai4s/submission/fno_ns/checkpoints/fno_ns_public_spec_ref_r1_best.pt",
+  "promote": false
+}

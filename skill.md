@@ -2,77 +2,53 @@
 
 ## Skill 名称
 
-**`fno-spectral-conv-supa`**（27 字符 · 仅英文/-· 不以特殊字符开头/结尾 · 符合官方表单规则）
+`spectral_conv_fno_ns_biren`（总入口）
 
-> 团队：翻斗花园（赛道 5 · 模型与算子）
-> 目标硬件：BIREN SUPA GPU（Biren106B）
-> 目标框架：PyTorch + torch_br + 自研 C++/SUPA Extension
-> Skill 版本：v1.0（2026-07-25）
+## 子 Skill 索引
 
-### Skill 描述（500 字符以内，直接复制到官方表单）
-
-```
-Implement FNO 2D Spectral Convolution on BIREN SUPA GPU with FFT +
-complex-domain GEMM + iFFT all on device. Includes 4-layer FNO-2D
-Navier-Stokes forward chain, Auto-Tuning skill that scans
-{path, buffer_max} to pick Pareto-best config per resolution,
-and workaround for SUPA platform bugs (rfft2_sufft SUPA-input
-correctness, SUDNN nn.Conv2d crash). Achieves worst rel 2.83e-7
-at 5.32/13.69/52.64 ms for 64/128/256 and 0.88M/3.30M/4.93M
-grid_points/s at batch 16.
-```
-
-### Skill 一句话描述
-
-在 BIREN SUPA GPU 上构建 FNO 核心 2D Spectral Convolution（FFT + 频域复数乘 + iFFT 全链路 SUPA 化），组装 ≥4 层 FNO 完成二维 Navier-Stokes 涡度前向验证，并通过 Auto-Tuning 在不同分辨率下自动选最佳路径与显存策略。
-
-### Skill 适用场景
-
-| 场景 | 描述 |
-|------|------|
-| **必选算子评测** | 提交 BIREN 平台 SpectralConv 单算子（必选题）|
-| **进阶模型评测** | 提交 FNO-2D Navier-Stokes 完整链路（进阶 C）|
-| **Auto-Tuning 集成** | 自动扫描 `path × buffer_max` 选 Pareto-best 配置 |
-| **跨分辨率性能调优** | 64/128/256 不同路径切换策略 |
-| **SUPA 平台 bug 排查** | rfft2_sufft SUPA-input + SUDNN nn.Conv2d crash + 2D FFT ABI |
-
-### Skill 不适用场景
-
-- ❌ 非 BIREN 平台（NVIDIA CUDA / AMD ROCm 不适用）
-- ❌ 3D FNO（本 Skill 仅覆盖 2D FNO；3D SpectralConv 仅作算子扩展演示）
-- ❌ 长时间训练（建议训练在 CPU 路径或调小规模）
+| Skill | 路径 | 用途 |
+|-------|------|------|
+| spectral-conv-dev | [`skills/spectral_conv_dev/`](skills/spectral_conv_dev/) | 算子构建、正确性与误差排查 |
+| fno-experiment | [`skills/fno_experiment/`](skills/fno_experiment/) | FNO 前向、指标与可视化 |
+| operator-opt-loop | [`skills/operator_opt_loop/`](skills/operator_opt_loop/) | OPT 规范闭环 P0–P6（dry-run / `--strict`）；见 `LOOP_PROCESS.md` |
+| fno-eval-protocol | [`skills/fno_eval_protocol.md`](skills/fno_eval_protocol.md) | 公开集评测/吞吐协议 |
+| spectral-chain-opt | [`skills/spectral_chain_optimization.md`](skills/spectral_chain_optimization.md) | fused/chain 优化叙事 |
+| sol-gap（proxy） | [`skills/sol_gap_analysis.md`](skills/sol_gap_analysis.md) | 队内 SOL proxy，**非得分句** |
 
 ## 目标
 
-在壁仞 BIREN GPU 上实现 FNO 核心 2D Spectral Convolution（SUPA），并组装 ≥4 层 FNO 完成二维 Navier-Stokes 涡度前向验证。
+在壁仞 BIREN GPU 上实现 FNO 核心 2D Spectral Convolution（SUPA），并组装 ≥4 层 FNO 完成二维 Navier-Stokes 涡度前向验证（主报：公开 NS64）。
 
 ## 输入
 
 - 张量 `x: [B, C_in, H, W]`（优先 2 的幂次分辨率）
 - 可配置 `modes1/modes2`
-- FNO：多帧涡度输入 `[B, T_in, H, W]`
+- FNO：多帧涡度输入 `[B, T_in, H, W]`；数据优先 `fno_ns/data/navier_stokes_v1e-3_N1200_T20.pt`
 
 ## 步骤
 
 1. `source brsw_set_env.sh`；`export SUPA_BASE=...`
 2. 方式一（可选）：`my_task_direct` → `make build && make run-accuracy`
-3. 方式二：`submission/spectral_conv_combo/./build.sh`
+3. 方式二：`submission/spectral_conv/./build.sh`
 4. `python3 test_accuracy.py`（rel ≤ 1e-4 vs 官网双角 reference）
-5. `python3 test_perf.py`（64/128/256）+ `test_perf_grid_points.py`（bs=16 官方口径）
-6. `cd ../fno_ns && python3 test_forward.py && python3 visualize.py`
-7. **可选**：`python3 train_official.py --epochs 100`（官方口径训练）
+5. `python3 test_perf.py`（64/128/256；idle；写 formal 须无争用）
+6. `cd ../fno_ns`：公开集评测 / `visualize.py`（demo_batch 须 public_ns64）
+7. FNO 推理主表：`python3 benchmark_fno_batch16.py`（先过 chain 一致性；默认公开 NS64）
+8. FNO 精度（选修）：主报已 **v10 `spec_ref_r2`**；机制见 `train_public_spectral_refiner_probe.py` + wave4 链（Spectral-Refiner lite · 仅训 spectral + Sobolev H⁻¹ 损失）
+9. 训练吞吐加分：`python3 benchmark_train_throughput.py`（CPU/`use_supa=False`）
+10. Agent 回放：`python3 skills/operator_opt_loop/run_loop.py --dry-run --strict`（流程见 `skills/operator_opt_loop/LOOP_PROCESS.md`）
 
 ## 输出
 
-- 正确性 JSON / `results/run_logs/spectral_accuracy_*.md`
-- 性能表 `results/run_logs/spectral_perf_*.md`
-- FNO 前向日志与 `results/figures/fno_ns_pred_vs_gt.png`
+- 正确性 / 性能日志与 `results/summary.json`
+- FNO 图：`results/figures/fno_ns_pred_vs_gt_*.png`、sample_strip
+- 主报：公开 L2 **0.035012**（`spec_ref_r2` · **v10**）；上一正式 v9 `dualview_r2` 0.035115；Spectral idle **3.811 / 8.054 / 29.560 ms**
 
 ## 能力边界
 
-- v1：FFT/iFFT 在 CPU；SUPA 负责频域复数乘
+- 正式热路径：fused suFFT + SUPA mul（`use_sufft="auto"`）；v1 为对照/可微训练
 - 勿使用 `torch.fft` 直接跑在 `device=supa` 做正确性
-- 公开 NS64 数据可替换合成数据；当前默认合成场保证可复现
+- FNO **正式主报**用公开 NS64（1000/128 · eval 10→1 · residual）；ckpt `fno_ns/checkpoints/fno_ns_public_demo.pt`；自建 v2 仅工程旁注
 
 ## 性能极限视角（SOL-ExecBench 校准）
 
@@ -111,13 +87,15 @@ kernel 选择背后的依据，评审问「为什么这么改」时直接对照�
   `clone()`），让下一次 call 覆盖 — 64/128 节省约 18 MB。
 - 缩到 `_BUFFER_CACHE_MAX=4`，防极端 shape 切换时把缓存填爆。
 
-实测：`B4_Cin32_Cout64` 下
+正式 `test_perf.py` idle 主表（warmup=10 / iters=100，`use_sufft="auto"`，CPU→CPU；**冻结**）：
 
-| resolution | memory_MB |
-|------------|-----------|
-| 64×64      | 9.5       |
-| 128×128    | 137.9     |
-| 256×256    | 522.2     |
+| resolution | forward_ms | peak memory_MB |
+|------------|-----------:|---------------:|
+| 64×64      | **3.811**  | 225.3          |
+| 128×128    | **8.054**  | 253.3          |
+| 256×256    | **29.560** | 353.3          |
+
+说明：vs 官网 CPU 参考加速比约 **19.5× / 11.1× / 10.0×**（非竞品 GPU）。历史中间板（R7 时代约 5.3/13.7/52）仅作演进痕迹，**不得**覆盖 formal 主表。口径见 `results/run_logs/tune_skill_disclaimer_2026-08-01.md`。
 
 ### 4. 已踩的坑（不要重做）
 
@@ -132,14 +110,11 @@ kernel 选择背后的依据，评审问「为什么这么改」时直接对照�
   `torch_br` 版本上算 SUPA-FFT 时会出现精度偏移（rel ≈ 5e-3，超阈
   值）。用 CPU FFT。
 
-### 5. 下一步可选（已在 todo）
+### 5. Formal ms 冻结后（勿重开）
 
-- `sufftSetStream` 流水 H2D 与 kernel launch — 当前扩展模块未开放
-  stream 句柄，需要重编 `.so`，ROI 偏低。
-- 把 64 切的 corner 直接写成 SUPA 端 `(2*M1, M2)` 一次性 GEMM — 已
-  试过，赢回 ~2 ms，输在 `torch.cat` 坑。
-- 频域 buffer 改成 half（fp16）— 需官方放宽精度阈值到 1e-3，目前
-  1e-4 不允许。
+- Spectral formal 三档已冻结；日常只做护栏复测与旁注叙事（C2R 墙）。  
+- Plan2d / `torch.fft@SUPA` / NVIDIA 真融合 / strided pack：**永久 No-Go**（见 OPT_ROUND2）。  
+- 历史可选项（stream 流水、half 权重等）ROI 不足或破坏正确性，保持关闭。
 
 ## 进阶 / 加分项（已完成）
 
@@ -148,48 +123,55 @@ kernel 选择背后的依据，评审问「为什么这么改」时直接对照�
 - FNO-NS 全链路 SUPA 前向（`forward_supa_chain`）
 - 双角 fused 评估 → 因 SUPA cat 坑回退（已记档）
 
-## Auto-Tuning Skill（`spectral_conv_combo/tune.py`）
+## Auto-Tuning Skill（`spectral_conv/tune.py`）
 
-**目的**：让 SpectralConv 在不同分辨率 / 显存压力下**自动**挑最优实现路径，而不是写死在代码里。这是「自动调优能力」加分项的落地材料。
+**目的**：让 SpectralConv 在不同分辨率和显存压力下自动选择真实生效的路径与 cache 上限。测试范围与正式算子一致，均为 CPU 输入到 CPU 输出。
 
 ### 可调旋钮
 
 | 旋钮 | 取值 | 影响 |
 |---|---|---|
-| `use_sufft` | `v1` / `fused` | FFT/iFFT 落在 CPU 还是 SUPA；64 偏 v1，≥128 偏 fused |
-| `buffer_max` | 2 / 4 / 8 | 频域/host buffer cache 上限；越大复用越好但显存占 |
-| `fused_block` | `None` / 64 / 128 / 256 | on-device 复数 GEMM block 大小 hint |
+| `path` | `v1` / `fused` | CPU FFT 还是 suFFT fused |
+| `buffer_max` | 2 / 4 / 8 | 频域与 host buffer cache 上限 |
+
+当前 kernel 不读取 `fused_block`，因此 tuner 不扫描该伪旋钮，避免用噪声产生无效决策。
 
 ### 自动搜索流程
 
 ```bash
-python3 tune.py                       # 5 warmup + 10 iters per cell
-python3 tune.py --quick               # 3 warmup + 3 iters（冒烟）
-python3 tune.py --dry-run             # 只扫描、不写全局表
-python3 tune.py --shape 64 96 128 256 # 自定义分辨率
+cd spectral_conv
+python3 tune.py
+python3 tune.py --quick
+python3 tune.py --dry-run
+python3 tune.py --shape 64 96 128 256
 ```
 
-`tune.py` 对每个 `(path, buffer_max, fused_block)` 组合：
-1. 调用一次 `spectral_conv2d_*`，warmup → 测 median wall-clock → 记录 peak memory。
-2. 用 **Pareto（forward_ms 主，peak_mb 次）** 选最优。
-3. 把 `{min(H,W): decision}` 写进 `spectral_conv_ops._AUTO_TUNE_TABLE`。
+每个配置独立清缓存，执行 warmup 后同步计时，记录 median、mean 和 peak memory。选型规则：先丢掉 `mean/median > 2` 的不稳定行（避免 v1 虚高 median），再按 mean → median → peak memory 选优。正式 sweep 默认 warmup=10 / iters=30。完整结果写入 `spectral_conv/tune_results.json`。
 
 ### 运行期动态选优
 
-`resolve_use_sufft()` / `_buffer_cache_max()` 在每次 call 时查表：
-```python
-ops._AUTO_TUNE_TABLE[64] = {"use_sufft": False, "buffer_max": 4}
-ops._AUTO_TUNE_TABLE[128] = {"use_sufft": True, "buffer_max": 8}
-```
-空表时退回硬编码默认（与原来行为完全一致）。
+`spectral_conv_ops.py` 在导入时读取 `tune_results.json`，将决策加载到 `_AUTO_TUNE_TABLE`。`use_sufft="auto"` 查表选路径并同步 `buffer_max`；若结果文件不存在或无效，回退到手工规则。`to_cpu=False` 的 FNO chain 强制 fused，因为 v1 必然返回 CPU。权重缓存按对象身份键入，避免 plain Tensor 每次内容哈希拖慢热路径。
 
-### 结果文件
+历史 sweep（2026-07-25，10 warmup / 30 iters；**HISTORICAL**，勿当 formal ms）：
 
-- `tune_results.json` — 完整 sweep（rows + per-shape best）
-- `results/run_logs/spectral_autotune_<date>.md` — `tune.py` 跑出来的决议 + 时间
+| resolution | path | buffer_max | median ms | peak MB |
+|---|---|---:|---:|---:|
+| 64 | fused | 2 | 5.337 | 41.7 |
+| 128 | fused | 2 | 13.702 | 137.9 |
+| 256 | fused | 8 | 52.720 | 522.3 |
+
+> Disclaimer：tune JSON 仅驱动 `use_sufft="auto"` 路径选择；formal 主表以 idle **3.811 / 8.054 / 29.560** 为准（见 `tune_skill_disclaimer_2026-08-01.md`）。
 
 ### 评审卖点
 
-1. **真能跑**：`tune.py --quick` 25 秒内出决议（3 shapes × 6 cells × 3 iters）。
-2. **真能落地**：决策直接喂给 kernel，每次 `spectral_conv2d_*` 走最优路径。
-3. **可解释**：扫描结果 JSON + `forward_ms / peak_mb` Pareto 表，评审可直接看「为什么 64 选 v1、128 选 fused」。
+1. 可运行：quick / dry-run / 正式 sweep 均已产出 JSON。
+2. 可落地：新进程自动加载结果，不只在 tuner 进程临时生效。
+3. 可解释：只扫描代码实际使用的旋钮；SOL/tune **不得**冒充 formal 得分句。
+
+## FNO 评测协议速查
+
+详见 `skills/fno_eval_protocol.md`：batch16 `grid_points/s` 公式、chain `1e-4` 门禁、公开 NS64 主报、训练吞吐加分口径。
+
+## SOL 差距分析（本地 proxy）
+
+详见 `skills/sol_gap_analysis.md`。脚本：`spectral_conv/bench_sol_proxy.py`。产出墙钟 / 显存 / GB/s·TFLOPS proxy，**不是**官方硬件 SOL / SOL-ExecBench。

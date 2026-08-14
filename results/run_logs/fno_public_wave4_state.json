@@ -1,0 +1,26 @@
+{
+  "stages": [
+    {
+      "tag": "spec_ref_r2",
+      "best_init": "/workspace/ai4s/submission/fno_ns/checkpoints/fno_ns_public_spec_ref_r2_best.pt",
+      "l2": 0.035011906176805496
+    },
+    {
+      "tag": "last_thaw_r4",
+      "best_init": "/workspace/ai4s/submission/fno_ns/checkpoints/fno_ns_public_spec_ref_r2_best.pt",
+      "l2": 0.035011906176805496
+    },
+    {
+      "tag": "qt_over_r3",
+      "best_init": "/workspace/ai4s/submission/fno_ns/checkpoints/fno_ns_public_spec_ref_r2_best.pt",
+      "l2": 0.035011906176805496
+    },
+    {
+      "tag": "dualview_r3",
+      "best_init": "/workspace/ai4s/submission/fno_ns/checkpoints/fno_ns_public_spec_ref_r2_best.pt",
+      "l2": 0.035011906176805496
+    }
+  ],
+  "gate": 0.03501497611179948,
+  "demo": 0.03511497611179948
+}
