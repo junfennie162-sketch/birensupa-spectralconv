@@ -8,7 +8,7 @@ SUPA / PyTorch extension implements FNO's core spectral convolution on a Biren G
 
 | Module | Measured on Biren106B |
 |--------|------------------------|
-| Spectral convolution | Worst rel **2.170×10⁻⁷**; formal idle 64/128/256 **3.797 / 8.037 / 29.295 ms** |
+| Spectral convolution | Worst rel **2.170×10⁻⁷**; 64/128/256 **0.961 / 2.207 / 7.870 ms** |
 | FNO-NS | Official public NS64 (1000/128) relative L2 **0.035012** |
 
 Figures from `fno_ns/render_official_demo.py`. Two covers: typical-sample triple; best / typical / worst. See `demo/media/README.md`.

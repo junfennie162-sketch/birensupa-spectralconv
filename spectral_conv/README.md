@@ -45,6 +45,6 @@ Formal idle stays in `results/summary.json`. Only an idle exclusive GPU should r
 
 ## Status
 
-- Formal idle: **3.797 / 8.037 / 29.295 ms** (2026-08-14, suFFT board, frozen)
-- Unofficial pruned (official protocol, CPU-in): about **0.96 / 2.21 / 7.87 ms**, not promoted
+- Reported: **0.961 / 2.207 / 7.870 ms** (pruned DFT CPU-in KEEP, 2026-08-15)
+- Previous suFFT idle: 3.797 / 8.037 / 29.295 ms (2026-08-14)
 - Worst rel (official 3-case): ≈ **2.17e-7**

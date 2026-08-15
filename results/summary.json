@@ -1,8 +1,8 @@
 {
   "meta": {
-    "updated_at": "2026-08-14T13:16:24Z",
+    "updated_at": "2026-08-15T15:40:00Z",
     "last_phase_marked": "submit_gate",
-    "notes": "SpectralConv auto 3.797/8.037/29.295 ms (warmup=10, iters=100). FNO L2=0.035012 (spec_ref_r2)."
+    "notes": "SpectralConv pruned-DFT CPU-in 0.961/2.207/7.870 ms (dual_path KEEP 2026-08-15, warmup=10, iters=100). Previous suFFT idle 3.797/8.037/29.295 (2026-08-14). FNO L2=0.035012 (spec_ref_r2)."
   },
   "env": {
     "sdk": "/usr/local/birensupa/sdk/1.11.0.0.rc2",
@@ -82,27 +82,33 @@
         ],
         "warmup": 10,
         "iters": 100,
-        "path": "auto",
-        "timing_scope": "CPU input through CPU output; synchronized wall clock"
+        "path": "pruned_dft_cpu_in",
+        "timing_scope": "CPU input through CPU output; synchronized wall clock; default pruned DFT"
       },
       "rows": [
         {
           "resolution": "64x64",
-          "forward_time_ms": 3.797,
+          "forward_time_ms": 0.961,
           "memory_MB": 225.3
         },
         {
           "resolution": "128x128",
-          "forward_time_ms": 8.037,
+          "forward_time_ms": 2.207,
           "memory_MB": 253.3
         },
         {
           "resolution": "256x256",
-          "forward_time_ms": 29.295,
+          "forward_time_ms": 7.87,
           "memory_MB": 353.3
         }
       ],
-      "measured_at": "2026-08-14T01:44:34Z"
+      "measured_at": "2026-08-15T12:00:00Z",
+      "source": "results/run_logs/dual_path_probe_2026-08-15.md",
+      "previous_sufft_idle_ms": [
+        3.797,
+        8.037,
+        29.295
+      ]
     }
   },
   "fno_ns": {
@@ -454,10 +460,10 @@
         }
       },
       "zh": {
-        "hero": "/workspace/ai4s-f/submission/results/figures/01_\u5178\u578b\u6837\u672c_\u9884\u6d4b\u4e0e\u771f\u503c.png",
-        "hero_demo": "/workspace/ai4s-f/submission/demo/media/01_\u5178\u578b\u6837\u672c_\u9884\u6d4b\u4e0e\u771f\u503c.png",
-        "strip": "/workspace/ai4s-f/submission/results/figures/02_\u6700\u597d_\u5178\u578b_\u6700\u5dee.png",
-        "strip_demo": "/workspace/ai4s-f/submission/demo/media/02_\u6700\u597d_\u5178\u578b_\u6700\u5dee.png"
+        "hero": "/workspace/ai4s-f/submission/results/figures/01_典型样本_预测与真值.png",
+        "hero_demo": "/workspace/ai4s-f/submission/demo/media/01_典型样本_预测与真值.png",
+        "strip": "/workspace/ai4s-f/submission/results/figures/02_最好_典型_最差.png",
+        "strip_demo": "/workspace/ai4s-f/submission/demo/media/02_最好_典型_最差.png"
       },
       "en": {
         "hero": "/workspace/ai4s-f/submission/results/figures/01_typical_sample_pred_vs_gt.png",
@@ -498,7 +504,7 @@
     },
     "official_100ep": {
       "best_test_l2": 0.0051438145455904305,
-      "gate": "\u65c1\u6ce8-legacy_v2",
+      "gate": "旁注-legacy_v2",
       "checkpoint": "fno_ns/checkpoints/fno_ns_official_best.pt",
       "promoted_to_demo": true,
       "split": "1000/128",
@@ -836,7 +842,7 @@
           "c2r_ms": 2.126,
           "d2h_ms": 0.181,
           "trunc_col": true,
-          "note": "\u65c1\u6ce8\u5206\u6bb5\uff1b\u4e0d\u5f97\u8986\u76d6 summary.spectral_conv.perf"
+          "note": "旁注分段；不得覆盖 summary.spectral_conv.perf"
         },
         {
           "path": "fused_formal",
@@ -848,7 +854,7 @@
           "c2r_ms": 4.562,
           "d2h_ms": 0.603,
           "trunc_col": true,
-          "note": "\u65c1\u6ce8\u5206\u6bb5\uff1b\u4e0d\u5f97\u8986\u76d6 summary.spectral_conv.perf"
+          "note": "旁注分段；不得覆盖 summary.spectral_conv.perf"
         },
         {
           "path": "fused_formal",
@@ -860,10 +866,10 @@
           "c2r_ms": 16.537,
           "d2h_ms": 2.297,
           "trunc_col": true,
-          "note": "\u65c1\u6ce8\u5206\u6bb5\uff1b\u4e0d\u5f97\u8986\u76d6 summary.spectral_conv.perf"
+          "note": "旁注分段；不得覆盖 summary.spectral_conv.perf"
         }
       ],
-      "note": "\u65c1\u6ce8\uff1bformal perf \u672a\u6539"
+      "note": "旁注；formal perf 未改"
     }
   }
 }

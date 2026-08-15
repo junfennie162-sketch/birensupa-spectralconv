@@ -13,21 +13,13 @@ Spectral convolution is scored as the operator problem. It does not read Navier�
 | Item | Official / reference | Ours (SUPA + extension) | Note |
 |------|----------------------|-------------------------|------|
 | Correctness (worst rel) | gate ≤ `1e-4` | **2.170×10⁻⁷** (3/3 PASS) | `reference_pytorch.py` |
-| 64×64 forward | 74.142 ms (CPU ref) | **3.797 ms** | ~19.5× · **formal idle** |
-| 128×128 forward | 89.000 ms (CPU ref) | **8.037 ms** | ~11.1× · **formal idle** |
-| 256×256 forward | 295.983 ms (CPU ref) | **29.295 ms** | ~10.1× · **formal idle** |
+| 64×64 forward | 74.142 ms (CPU ref) | **0.961 ms** | ~77.2× · pruned DFT CPU-in KEEP |
+| 128×128 forward | 89.000 ms (CPU ref) | **2.207 ms** | ~40.3× |
+| 256×256 forward | 295.983 ms (CPU ref) | **7.870 ms** | ~37.6× |
 
-Formal idle measured 2026-08-14 (`warmup=10`, `iters=100`, path `auto` on the suFFT fused board). Logs: `results/run_logs/official_recheck_2026-08-14.log`, `spectral_accuracy_2026-08-14.md`, `spectral_perf_2026-08-14.md`.
+KEEP measured 2026-08-15 (`warmup=10`, `iters=100`, CPU-in). Log: `results/run_logs/dual_path_probe_2026-08-15.md`. Previous suFFT idle: 3.797 / 8.037 / 29.295 ms (`official_recheck_2026-08-14.log`).
 
-Default **hot path** in this tree is pruned DFT. Sample **unofficial** CPU-in timings, same official protocol, **not promoted**:
-
-| Resolution | Unofficial pruned (CPU-in) | Formal idle (frozen) |
-|------------|----------------------------|----------------------|
-| 64×64 | ~0.96 ms | 3.797 ms |
-| 128×128 | ~2.21 ms | 8.037 ms |
-| 256×256 | ~7.87 ms | 29.295 ms |
-
-Reproduce unofficial numbers with `bash scripts/validate.sh`. Do not run `test_perf.py` unless you intend to rewrite the formal row on an idle card.
+Reproduce with `bash scripts/validate.sh`. Do not run `test_perf.py` unless you intend to rewrite `summary.json` on an idle card.
 
 ### 1.2 Advanced model: same official dataset, before vs after
 
@@ -50,13 +42,7 @@ Reproduce: build the operator, then `python3 render_official_demo.py` in `fno_ns
 
 Early code did spatial work on device, FFT on Host, full-spectrum multiply on CPU, then copy back. At small sizes the **copies** cost more than the multiply.
 
-Frozen **formal** hot path:
-
-1. **suFFT R2C on device**, spectrum stays on the card.
-2. **Custom SUPA kernel** for the official dual-corner complex multiply (kept modes only).
-3. **C2R on device**. Sources: `spectral_conv/spectral_conv_ext.su`, `spectral_conv_ext.cpp`, `spectral_conv_ops.py`.
-
-**Default** hot path in this release: pruned mixed-radix DFT / iDFT on kept bins (`pruned_*.su`), same dual-corner multiply. `SPECTRAL_PRUNED_FFT=0 SPECTRAL_PRUNED_INV=0` restores suFFT.
+**Reported** hot path in this release: pruned mixed-radix DFT / iDFT on kept bins (`pruned_*.su`), same dual-corner multiply. CPU-in KEEP **0.961 / 2.207 / 7.870 ms**. `SPECTRAL_PRUNED_FFT=0 SPECTRAL_PRUNED_INV=0` restores suFFT (previous idle 3.797 / 8.037 / 29.295 ms).
 
 Engineering around both paths: weight and spectrum caches; output-buffer reuse; Parameter identity in cache keys; CPU-in `_SPATIAL_OUT_CACHE` for `to_cpu=True`. FNO must not reuse that spatial buffer (`to_cpu=False` allocates a fresh packed irfft). Skip-roundtrip FNO, pinned H2D, and dual-n1 irfft were No-Go and reverted.
 

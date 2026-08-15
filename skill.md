@@ -35,13 +35,13 @@ Formal board (`results/summary.json`):
 
 | Item | Value |
 |------|--------|
-| SpectralConv idle 64 / 128 / 256 | **3.797 / 8.037 / 29.295 ms** |
+| SpectralConv 64 / 128 / 256 | **0.961 / 2.207 / 7.870 ms** (pruned DFT, CPU-in KEEP) |
 | Worst relative error | **2.170×10⁻⁷** (gate `1e-4`) |
 | FNO public NS64 relative L2 | **0.035012** (was 0.041835 when we first attached the official set) |
 
 This is not a renamed official PyTorch reference, and it is not a pretty L2 on a home-grown vorticity field.
 
-The **default hot path** in this tree is a pruned DFT (only the kept dual-corner modes). Sample unofficial CPU-in timings: about **0.96 / 2.21 / 7.87 ms**. They are **not** the formal idle row.
+The **default hot path** in this tree is a pruned DFT (only the kept dual-corner modes). Reported CPU-in timings: **0.961 / 2.207 / 7.870 ms**. Previous suFFT idle: 3.797 / 8.037 / 29.295 ms.
 
 ---
 

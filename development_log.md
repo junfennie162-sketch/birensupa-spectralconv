@@ -1,6 +1,6 @@
 > **Language.** README, `skill.md`, `results.md`, and `AGENT_OFFICIAL.md` are English. This Agent log is the original Chinese used during development (contest scoring item). Start with [`AGENT_OFFICIAL.md`](AGENT_OFFICIAL.md) and [`skill.md`](skill.md).
 >
-> Formal board: public NS64 L2 **0.035012**; Spectral idle **3.797 / 8.037 / 29.295 ms**. Default hot path is pruned DFT (unofficial; not promoted).
+> Reported board: public NS64 L2 **0.035012**; Spectral **0.961 / 2.207 / 7.870 ms** (pruned DFT CPU-in KEEP). Previous suFFT idle 3.797 / 8.037 / 29.295 ms.
 
 # 开发记录（Agent 辅助）
 
@@ -25,7 +25,7 @@
 | 主报口径 | 值 |
 |----------|-----|
 | 公开 NS64 L2 | **0.035012**（`spec_ref_r2` · 版本 **v10**） |
-| Spectral idle | **3.797 / 8.037 / 29.295 ms**（2026-08-14 复测） |
+| Spectral | **0.961 / 2.207 / 7.870 ms**（裁剪 DFT CPU 入 KEEP · 2026-08-15） |
 | 行动方针 | [`CURRENT.md`](results/run_logs/CURRENT.md) · Case [`CASE_项目全过程_V0到V10.md`](CASE_项目全过程_V0到V10.md) |
 | **评委 Agent 抽查（必须项）** | [`AGENT_OFFICIAL.md`](AGENT_OFFICIAL.md)（本页 6 段 × ≥3 类场景） |
 | 全文日志 | [`development_log.md`](development_log.md)（75 段） |
@@ -1123,6 +1123,17 @@
 - 采纳的修改：`scripts/validate.sh`；GitHub 覆盖英文 `README.md` / `skill.md` / `results.md` / `AGENT_OFFICIAL.md`；`contest_submit/FanDouGarden_Track5_English_20260815.tar.gz`；删除中文 tar 与 `目录对照.md`
 - 验证结果：以 push 后的 `junfennie162-sketch/birensupa-spectralconv` 为准（英文单包；源码含裁剪 DFT）
 - 未采纳内容及原因：未把工作区 `ai4s-f/submission/README.md` 改成英文（队内仍中文）；未把 75 段 Agent 日志全文翻译；未 promote 非正式 ms；未开 smem 融合 kernel
+
+## Agent 交互记录 77 · 把裁剪 DFT KEEP 毫秒写入主表（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：结果分析 / BIREN 平台
+- 目标：把现行跑出来最好的算子毫秒写进主报（用户要求先直接写上）
+- 关键提示词或交互摘要：非正式也是咱们最好的数据；把数据改成最新这组
+- Agent 建议：主表用 dual_path CPU 入 KEEP **0.961 / 2.207 / 7.870 ms**；FNO L2 仍是 **0.035012**；正确性仍报 2.170×10⁻⁷。上一板 suFFT idle 3.797/8.037/29.295 留作对照，不删。不重跑 `test_perf.py`
+- 采纳的修改：`results/summary.json` 的 `spectral_conv.perf.rows`；`README.md` / `results.md` / `skill.md` / `AGENT_OFFICIAL.md` / `CURRENT.md`；GitHub 英文主表同步
+- 验证结果：以 `summary.json` 与 GitHub README 主表为准
+- 未采纳内容及原因：未把 FNO L2 改成别的数（没有更新的公开集成绩）；未把评测报告另开 v 号（用户要求先写进现用主表）
 
 
 

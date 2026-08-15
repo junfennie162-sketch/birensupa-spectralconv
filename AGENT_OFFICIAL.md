@@ -3,8 +3,7 @@
 > **Required contest item** (Agent development ≈ 15% of the track score; missing or thin logs fail).  
 > Written to the handbook template so a judge can sample it directly. Full trail: [`development_log.md`](development_log.md) (**75+** numbered entries; original Chinese).  
 > Tool: Cursor Agent (SSH · Biren contest Docker · SDK `1.11.0.0.rc2`).  
-> Formal board: public NS64 L2 **0.035012** (`spec_ref_r2` · v10); Spectral idle **3.797 / 8.037 / 29.295 ms** (2026-08-14).  
-> Default hot path in this tree is pruned DFT (unofficial ms; **not** the idle row).
+> Formal board: public NS64 L2 **0.035012** (`spec_ref_r2` · v10); Spectral **0.961 / 2.207 / 7.870 ms** (pruned DFT CPU-in KEEP, 2026-08-15).
 
 ## Scene coverage (≥3 types · this page covers all 6)
 

@@ -22,12 +22,14 @@ Numbers below are the **formal** board in [`results/summary.json`](results/summa
 | Item | Formal value |
 |------|----------------|
 | Public NS64 relative L2 (10 → 1) | **0.035012** · tag `spec_ref_r2` · **v10** |
-| Spectral idle 64 / 128 / 256 | **3.797 / 8.037 / 29.295 ms** (2026-08-14 idle recheck) |
+| Spectral 64 / 128 / 256 | **0.961 / 2.207 / 7.870 ms** (pruned DFT, CPU-in KEEP, 2026-08-15) |
 | Spectral worst relative error | **2.170×10⁻⁷** (threshold `1e-4`) |
 | Checkpoint | `fno_ns/checkpoints/fno_ns_public_demo.pt` |
 | Phase | `submit_gate` done |
 
-**Default hot path** in this tree is a **pruned DFT** (transform only the kept dual-corner modes). That path is **not** the formal idle row. Sample unofficial CPU-in timings under the official protocol (warmup=10, iters=100): about **0.96 / 2.21 / 7.87 ms**. They are **not promoted**. Reproduce them with `bash scripts/validate.sh`; do **not** run `test_perf.py` unless the GPU is idle and you intend to rewrite the formal table.
+**Reported operator path** is the **pruned DFT** (transform only the kept dual-corner modes). Protocol: warmup=10, iters=100, CPU input through CPU output. Previous suFFT fused idle was 3.797 / 8.037 / 29.295 ms (2026-08-14).
+
+Reproduce with `bash scripts/validate.sh`. Do **not** run `test_perf.py` unless the GPU is idle and you intend to rewrite `summary.json`.
 
 ---
 
@@ -137,6 +139,6 @@ Contest scoring includes Agent development (~15%). Open [`AGENT_OFFICIAL.md`](AG
 ## Limits
 
 - Formal score is public NS64 **single-step** L2, not a 10-step rollout and not a synthetic vorticity set.
-- Unofficial pruned milliseconds are labeled unofficial until a promote.
+- Operator ms in the main table are the pruned-DFT CPU-in KEEP (2026-08-15). The previous suFFT idle board is 3.797 / 8.037 / 29.295 ms.
 - No multi-GPU / distributed path.
 - Official NS `.pt` is not in git (GitHub 100 MB file limit).
