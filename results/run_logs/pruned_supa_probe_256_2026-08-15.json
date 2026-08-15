@@ -1,0 +1,26 @@
+{
+  "rows": [
+    {
+      "path": "fused_auto",
+      "res": 256,
+      "rel": 2.830462741414174e-07,
+      "ok": true,
+      "ms": 29.23722433236738
+    },
+    {
+      "path": "pruned_inv",
+      "res": 256,
+      "rel": 2.930013872821249e-05,
+      "ok": true,
+      "ms": 27.93609583750367
+    },
+    {
+      "path": "pruned_fft_inv",
+      "res": 256,
+      "rel": 3.359355516101915e-05,
+      "ok": true,
+      "ms": 25.051312521100044
+    }
+  ],
+  "writes_formal_perf": false
+}

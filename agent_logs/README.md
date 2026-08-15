@@ -1,13 +1,3 @@
-# 交互日志
+# Agent chat originals
 
-这里是 Cursor Agent 的完整对话证据。**请先打开 Markdown**（记事本 / VS Code / 浏览器都能看）。同名 `.jsonl` 是机器原始文件，留给需要核对原文的人。截图是当时聊天界面的原图。
-
-| 请打开这个 | 原始备份 | 这是什么 |
-|------------|----------|----------|
-| [`01_2026-07-31_确认主力工作区.md`](01_2026-07-31_确认主力工作区.md) | `8258b9af-17b1-4d78-89fc-12fd826b64e9.jsonl` | 2026-07-31：确认主力工作区与当时指标 |
-| [`02_2026-08-02_新一轮优化.md`](02_2026-08-02_新一轮优化.md) | `b2a7a02d-aa1c-4a6a-bb3b-d59c969db60e.jsonl` | 2026-08-02：按评测报告开新一轮优化 |
-| [`03_2026-08-14_聊天截图时间线.md`](03_2026-08-14_聊天截图时间线.md) | `截图_01` … `截图_09`.png | 9 张聊天截图；标题时间与 01/02 相同写法 |
-
-Markdown 里按时间写出：用户原话、Agent 回复、当时调用了哪些工具。没有改对话内容。截图页的钟点：截图上没有系统时钟的标「约」；PNG 采集时间为 Friday, Aug 14, 2026, 10:41 PM (UTC+8)。
-
-格式化的 6 段抽查在上级 `development_log.md` 和 `AGENT_OFFICIAL.md`。运行 log 在 `测试结果/运行日志/`。
+Markdown notes and screenshots from Cursor / Biren Agent sessions. The scored write-up is [`../AGENT_OFFICIAL.md`](../AGENT_OFFICIAL.md); the full field log is [`../development_log.md`](../development_log.md).

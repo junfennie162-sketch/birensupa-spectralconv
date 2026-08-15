@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <cstdlib>
 #include <limits>
 #include <mutex>
 #include <unordered_map>
@@ -24,6 +25,64 @@ extern "C" suError_t launch_spectral_mul_gather_scatter_dual(
     const float *d_x_full, const float *d_w1, const float *d_w2, float *d_out_freq,
     int batch_size, int channels_in, int channels_out, int modes1, int modes2,
     int height, int width_freq, suStream_t stream);
+extern "C" suError_t launch_pruned_ifft_h(const float *in_freq, float *row_freq,
+                                          int batch_size, int channels, int height,
+                                          int modes1, int modes2, suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w(const float *row_freq, float *spatial,
+                                           int batch_size, int channels, int height,
+                                           int width, int modes2, suStream_t stream);
+extern "C" suError_t launch_pruned_rfft_w(const float *x, float *row_freq,
+                                          int batch_size, int channels, int height,
+                                          int width, int modes2, suStream_t stream);
+extern "C" suError_t launch_pruned_fft_h_corners(const float *row_freq, float *packed,
+                                                 int batch_size, int channels, int height,
+                                                 int modes1, int modes2, suStream_t stream);
+extern "C" suError_t launch_pruned_rfft_w_geo(const float *x, float *row_freq,
+                                              int batch_size, int channels, int height,
+                                              int width, int modes2, suStream_t stream);
+extern "C" suError_t launch_pruned_rfft_w_fact16x8_w128(const float *x, float *row_freq,
+                                                        int batch_size, int channels, int height,
+                                                        suStream_t stream);
+extern "C" suError_t launch_pruned_rfft_w_fact16x16_w256(const float *x, float *row_freq,
+                                                         int batch_size, int channels, int height,
+                                                         suStream_t stream);
+extern "C" suError_t launch_pruned_rfft_w_fact16x4_w64(const float *x, float *row_freq,
+                                                       int batch_size, int channels, int height,
+                                                       suStream_t stream);
+extern "C" suError_t launch_pruned_fft_h_fact16x4_h64(const float *row_freq, float *packed,
+                                                      int batch_size, int channels,
+                                                      suStream_t stream);
+extern "C" suError_t launch_pruned_fft_h_fact16x8_h128(const float *row_freq, float *packed,
+                                                       int batch_size, int channels,
+                                                       suStream_t stream);
+extern "C" suError_t launch_pruned_fft_h_fact16x16_h256(const float *row_freq, float *packed,
+                                                        int batch_size, int channels,
+                                                        suStream_t stream);
+extern "C" suError_t launch_pruned_rfft_w_coop(const float *x, float *row_freq,
+                                               int batch_size, int channels, int height,
+                                               int width, int modes2, suStream_t stream);
+extern "C" suError_t launch_pruned_rfft_w_pack32(const float *x, float *row_freq,
+                                                 int batch_size, int channels, int height,
+                                                 int modes2, suStream_t stream);
+extern "C" suError_t launch_pruned_fft_h_geo(const float *row_freq, float *packed,
+                                             int batch_size, int channels, int height,
+                                             int modes1, int modes2, suStream_t stream);
+extern "C" suError_t launch_pruned_fft_h_coop(const float *row_freq, float *packed,
+                                              int batch_size, int channels, int height,
+                                              int modes1, int modes2, suStream_t stream);
+extern "C" suError_t launch_pruned_irfft2_fused(const float *in_freq, float *spatial,
+                                                int batch_size, int channels, int height,
+                                                int width, int modes1, int modes2,
+                                                suStream_t stream);
+
+static bool env_flag(const char *key, bool default_on) {
+    const char *value = std::getenv(key);
+    if (value == nullptr || value[0] == '\0') {
+        return default_on;
+    }
+    return !(value[0] == '0' || value[0] == 'f' || value[0] == 'F' || value[0] == 'n' ||
+             value[0] == 'N');
+}
 
 static void check_status(suError_t status, const char *what) {
     TORCH_CHECK(status == suSuccess, what, " failed with SUPA status ",
@@ -622,6 +681,198 @@ torch::Tensor irfft2_sufft(torch::Tensor x_freq, int64_t height_i64, int64_t wid
     return out.view({batch_size, channels, height, width});
 }
 
+torch::Tensor rfft2_pruned_trunc(torch::Tensor x, int64_t modes1_i64, int64_t modes2_i64) {
+    TORCH_CHECK(x.dim() == 4, "rfft2_pruned_trunc expects [B,C,H,W]");
+    TORCH_CHECK(x.dtype() == torch::kFloat32, "rfft2_pruned_trunc expects float32");
+    auto x_contig = x.contiguous();
+    const int batch_size = static_cast<int>(x_contig.size(0));
+    const int channels = static_cast<int>(x_contig.size(1));
+    const int height = static_cast<int>(x_contig.size(2));
+    const int width = static_cast<int>(x_contig.size(3));
+    const int modes1 = static_cast<int>(modes1_i64);
+    const int modes2 = static_cast<int>(modes2_i64);
+    TORCH_CHECK(modes1 > 0 && modes1 <= height, "modes1 out of range");
+    TORCH_CHECK(modes2 > 0 && modes2 <= width / 2 + 1, "modes2 out of range");
+    const auto opts = x_contig.options();
+    auto row = get_stage_buffer(
+        StageKey{batch_size, channels, height, modes2, kStageTruncColOut},
+        {batch_size, channels, height, modes2, 2}, opts);
+    auto packed = get_stage_buffer(
+        StageKey{batch_size, channels, height, modes2, kStageTruncOut},
+        {batch_size, channels, height, modes2, 2}, opts);
+    const bool coop = env_flag("SPECTRAL_COOP", false);
+    if (env_flag("SPECTRAL_PACKED_FFT", false) && width == 64 && modes2 == 16) {
+        check_status(launch_pruned_rfft_w_pack32(x_contig.data_ptr<float>(),
+                                                 row.data_ptr<float>(), batch_size, channels,
+                                                 height, modes2, nullptr),
+                     "launch_pruned_rfft_w_pack32");
+    } else if (coop && modes2 == 16 && (width == 64 || width == 128 || width == 256)) {
+        check_status(launch_pruned_rfft_w_coop(x_contig.data_ptr<float>(), row.data_ptr<float>(),
+                                               batch_size, channels, height, width, modes2,
+                                               nullptr),
+                     "launch_pruned_rfft_w_coop");
+    } else if (modes2 == 16 && width == 256) {
+        check_status(launch_pruned_rfft_w_fact16x16_w256(
+                         x_contig.data_ptr<float>(), row.data_ptr<float>(), batch_size,
+                         channels, height, nullptr),
+                     "launch_pruned_rfft_w_fact16x16_w256");
+    } else if (modes2 == 16 && width == 128) {
+        check_status(launch_pruned_rfft_w_fact16x8_w128(
+                         x_contig.data_ptr<float>(), row.data_ptr<float>(), batch_size,
+                         channels, height, nullptr),
+                     "launch_pruned_rfft_w_fact16x8_w128");
+    } else if (modes2 == 16 && width == 64) {
+        check_status(launch_pruned_rfft_w_fact16x4_w64(
+                         x_contig.data_ptr<float>(), row.data_ptr<float>(), batch_size,
+                         channels, height, nullptr),
+                     "launch_pruned_rfft_w_fact16x4_w64");
+    } else if (modes2 == 16 && (width == 64 || width == 128 || width == 256)) {
+        check_status(launch_pruned_rfft_w_geo(x_contig.data_ptr<float>(), row.data_ptr<float>(),
+                                              batch_size, channels, height, width, modes2,
+                                              nullptr),
+                     "launch_pruned_rfft_w_geo");
+    } else {
+        check_status(launch_pruned_rfft_w(x_contig.data_ptr<float>(), row.data_ptr<float>(),
+                                          batch_size, channels, height, width, modes2, nullptr),
+                     "launch_pruned_rfft_w");
+    }
+    if (coop && modes1 == 16 && modes2 == 16 &&
+        (height == 64 || height == 128 || height == 256)) {
+        check_status(launch_pruned_fft_h_coop(row.data_ptr<float>(), packed.data_ptr<float>(),
+                                              batch_size, channels, height, modes1, modes2,
+                                              nullptr),
+                     "launch_pruned_fft_h_coop");
+    } else if (modes1 == 16 && modes2 == 16 && height == 256) {
+        check_status(launch_pruned_fft_h_fact16x16_h256(row.data_ptr<float>(), packed.data_ptr<float>(),
+                                                        batch_size, channels, nullptr),
+                     "launch_pruned_fft_h_fact16x16_h256");
+    } else if (modes1 == 16 && modes2 == 16 && height == 128) {
+        check_status(launch_pruned_fft_h_fact16x8_h128(row.data_ptr<float>(), packed.data_ptr<float>(),
+                                                       batch_size, channels, nullptr),
+                     "launch_pruned_fft_h_fact16x8_h128");
+    } else if (modes1 == 16 && modes2 == 16 && height == 64) {
+        check_status(launch_pruned_fft_h_fact16x4_h64(row.data_ptr<float>(), packed.data_ptr<float>(),
+                                                      batch_size, channels, nullptr),
+                     "launch_pruned_fft_h_fact16x4_h64");
+    } else if (modes1 == 16 && modes2 == 16 && (height == 64 || height == 128 || height == 256)) {
+        check_status(launch_pruned_fft_h_geo(row.data_ptr<float>(), packed.data_ptr<float>(),
+                                             batch_size, channels, height, modes1, modes2,
+                                             nullptr),
+                     "launch_pruned_fft_h_geo");
+    } else {
+        check_status(launch_pruned_fft_h_corners(row.data_ptr<float>(), packed.data_ptr<float>(),
+                                                 batch_size, channels, height, modes1, modes2,
+                                                 nullptr),
+                     "launch_pruned_fft_h_corners");
+    }
+    return packed;
+}
+
+static void irfft2_pruned_packed_into(const torch::Tensor &x_contig, int height, int width,
+                                      int modes1, int modes2, torch::Tensor &out);
+
+torch::Tensor irfft2_pruned_packed(torch::Tensor x_freq, int64_t height_i64, int64_t width_i64,
+                                   int64_t modes1_i64, int64_t modes2_i64) {
+    check_freq_tensor(x_freq, "x_freq", 2);
+    auto x_contig = x_freq.contiguous();
+    const int batch_size = static_cast<int>(x_contig.size(0));
+    const int channels = static_cast<int>(x_contig.size(1));
+    const int height = static_cast<int>(height_i64);
+    const int width = static_cast<int>(width_i64);
+    const int modes1 = static_cast<int>(modes1_i64);
+    const int modes2 = static_cast<int>(modes2_i64);
+    TORCH_CHECK(x_contig.size(2) == height, "height mismatch");
+    TORCH_CHECK(x_contig.size(3) == modes2, "packed width must be modes2");
+    TORCH_CHECK(modes1 > 0 && modes1 <= height, "modes1 out of range");
+    const auto opts = x_contig.options();
+    auto out = torch::empty({batch_size, channels, height, width}, opts.dtype(torch::kFloat32));
+    irfft2_pruned_packed_into(x_contig, height, width, modes1, modes2, out);
+    return out;
+}
+
+void irfft2_pruned_packed_out(torch::Tensor x_freq, int64_t height_i64, int64_t width_i64,
+                              int64_t modes1_i64, int64_t modes2_i64, torch::Tensor out) {
+    check_freq_tensor(x_freq, "x_freq", 2);
+    auto x_contig = x_freq.contiguous();
+    const int batch_size = static_cast<int>(x_contig.size(0));
+    const int channels = static_cast<int>(x_contig.size(1));
+    const int height = static_cast<int>(height_i64);
+    const int width = static_cast<int>(width_i64);
+    const int modes1 = static_cast<int>(modes1_i64);
+    const int modes2 = static_cast<int>(modes2_i64);
+    TORCH_CHECK(x_contig.size(2) == height, "height mismatch");
+    TORCH_CHECK(x_contig.size(3) == modes2, "packed width must be modes2");
+    TORCH_CHECK(modes1 > 0 && modes1 <= height, "modes1 out of range");
+    TORCH_CHECK(out.dim() == 4, "out expects [B,C,H,W]");
+    TORCH_CHECK(out.dtype() == torch::kFloat32, "out expects float32");
+    TORCH_CHECK(out.size(0) == batch_size && out.size(1) == channels &&
+                    out.size(2) == height && out.size(3) == width,
+                "out shape mismatch");
+    auto out_c = out.contiguous();
+    irfft2_pruned_packed_into(x_contig, height, width, modes1, modes2, out_c);
+    if (!out.is_same(out_c)) {
+        out.copy_(out_c);
+    }
+}
+
+static void irfft2_pruned_packed_into(const torch::Tensor &x_contig, int height, int width,
+                                      int modes1, int modes2, torch::Tensor &out) {
+    const int batch_size = static_cast<int>(x_contig.size(0));
+    const int channels = static_cast<int>(x_contig.size(1));
+    const auto opts = x_contig.options();
+    const bool fused =
+        (env_flag("SPECTRAL_FUSED_INV", false) ||
+         (width == 64 && env_flag("SPECTRAL_FUSED_OCC64", false)) ||
+         (width >= 256 && env_flag("SPECTRAL_FUSED_INV256", false))) &&
+        modes1 == 16 && modes2 == 16;
+    if (fused) {
+        check_status(launch_pruned_irfft2_fused(x_contig.data_ptr<float>(), out.data_ptr<float>(),
+                                                batch_size, channels, height, width, modes1,
+                                                modes2, nullptr),
+                     "launch_pruned_irfft2_fused");
+        return;
+    }
+    auto row = get_stage_buffer(
+        StageKey{batch_size, channels, height, modes2, kStageTruncColIn},
+        {batch_size, channels, height, modes2, 2}, opts);
+    check_status(launch_pruned_ifft_h(x_contig.data_ptr<float>(), row.data_ptr<float>(),
+                                      batch_size, channels, height, modes1, modes2, nullptr),
+                 "launch_pruned_ifft_h");
+    check_status(launch_pruned_irfft_w(row.data_ptr<float>(), out.data_ptr<float>(),
+                                       batch_size, channels, height, width, modes2, nullptr),
+                 "launch_pruned_irfft_w");
+}
+
+torch::Tensor ifft_h_pruned_packed(torch::Tensor x_freq, int64_t modes1_i64, int64_t modes2_i64) {
+    check_freq_tensor(x_freq, "x_freq", 2);
+    auto x_contig = x_freq.contiguous();
+    const int batch_size = static_cast<int>(x_contig.size(0));
+    const int channels = static_cast<int>(x_contig.size(1));
+    const int height = static_cast<int>(x_contig.size(2));
+    const int modes1 = static_cast<int>(modes1_i64);
+    const int modes2 = static_cast<int>(modes2_i64);
+    auto row = torch::empty_like(x_contig);
+    check_status(launch_pruned_ifft_h(x_contig.data_ptr<float>(), row.data_ptr<float>(),
+                                      batch_size, channels, height, modes1, modes2, nullptr),
+                 "launch_pruned_ifft_h");
+    return row;
+}
+
+torch::Tensor irfft_w_pruned(torch::Tensor row_freq, int64_t width_i64, int64_t modes2_i64) {
+    check_freq_tensor(row_freq, "row_freq", 2);
+    auto x_contig = row_freq.contiguous();
+    const int batch_size = static_cast<int>(x_contig.size(0));
+    const int channels = static_cast<int>(x_contig.size(1));
+    const int height = static_cast<int>(x_contig.size(2));
+    const int width = static_cast<int>(width_i64);
+    const int modes2 = static_cast<int>(modes2_i64);
+    auto out = torch::empty({batch_size, channels, height, width}, x_contig.options().dtype(torch::kFloat32));
+    check_status(launch_pruned_irfft_w(x_contig.data_ptr<float>(), out.data_ptr<float>(),
+                                       batch_size, channels, height, width, modes2, nullptr),
+                 "launch_pruned_irfft_w");
+    return out;
+}
+
 PYBIND11_MODULE(spectral_conv_ext, m) {
     m.def("spectral_mul", &spectral_mul,
           "Complex spectral multiply for FNO corner modes (SUPA kernel)");
@@ -657,4 +908,23 @@ PYBIND11_MODULE(spectral_conv_ext, m) {
           "P4: inv col-FFT on packed/full modes2 + C2R",
           pybind11::arg("x_freq"), pybind11::arg("height"),
           pybind11::arg("width"), pybind11::arg("modes2"));
+    m.def("rfft2_pruned_trunc", &rfft2_pruned_trunc,
+          "SUFFT-free: W-DFT modes2 + H-DFT two corners → packed [B,C,H,M2,2]",
+          pybind11::arg("x"), pybind11::arg("modes1"), pybind11::arg("modes2"));
+    m.def("irfft2_pruned_packed", &irfft2_pruned_packed,
+          "SUFFT-free inverse from packed dual-corner spectrum",
+          pybind11::arg("x_freq"), pybind11::arg("height"),
+          pybind11::arg("width"), pybind11::arg("modes1"),
+          pybind11::arg("modes2"));
+    m.def("irfft2_pruned_packed_out", &irfft2_pruned_packed_out,
+          "SUFFT-free inverse into caller-supplied spatial buffer (CPU-in cache)",
+          pybind11::arg("x_freq"), pybind11::arg("height"),
+          pybind11::arg("width"), pybind11::arg("modes1"),
+          pybind11::arg("modes2"), pybind11::arg("out"));
+    m.def("ifft_h_pruned_packed", &ifft_h_pruned_packed,
+          "Pruned inverse H-FFT only (profile)",
+          pybind11::arg("x_freq"), pybind11::arg("modes1"), pybind11::arg("modes2"));
+    m.def("irfft_w_pruned", &irfft_w_pruned,
+          "Pruned inverse W-iRFFT only (profile)",
+          pybind11::arg("row_freq"), pybind11::arg("width"), pybind11::arg("modes2"));
 }

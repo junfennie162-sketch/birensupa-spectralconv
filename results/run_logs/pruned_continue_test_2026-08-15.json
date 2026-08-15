@@ -1,0 +1,58 @@
+{
+  "task": "pruned_continue_test",
+  "protocol": "accuracy=official 3 cases; perf=B4 Cin32 Cout64 modes16 warmup10 iters100 CPU-in",
+  "all_ok": true,
+  "accuracy": [
+    {
+      "path": "default_pruned",
+      "case": "tiny_8x8",
+      "rel": 4.67537856728397e-08,
+      "ok": true
+    },
+    {
+      "path": "default_pruned",
+      "case": "small_32x32",
+      "rel": 1.1374232639616424e-07,
+      "ok": true
+    },
+    {
+      "path": "default_pruned",
+      "case": "target_64x64",
+      "rel": 7.161657759121021e-06,
+      "ok": true
+    },
+    {
+      "path": "sufft_trunc",
+      "case": "tiny_8x8",
+      "rel": 4.67537856728397e-08,
+      "ok": true
+    },
+    {
+      "path": "sufft_trunc",
+      "case": "small_32x32",
+      "rel": 1.1374232639616424e-07,
+      "ok": true
+    },
+    {
+      "path": "sufft_trunc",
+      "case": "target_64x64",
+      "rel": 2.1701555345060285e-07,
+      "ok": true
+    }
+  ],
+  "timing": [
+    {
+      "path": "default_pruned",
+      "ms64": 0.9888310730457306,
+      "ms128": 2.330765640363097,
+      "ms256": 7.877291152253748
+    },
+    {
+      "path": "sufft_trunc",
+      "ms64": 3.6533207446336746,
+      "ms128": 8.542491681873798,
+      "ms256": 29.149431958794594
+    }
+  ],
+  "writes_formal_perf": false
+}

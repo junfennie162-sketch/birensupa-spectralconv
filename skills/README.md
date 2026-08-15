@@ -1,3 +1,3 @@
-# 技能文档
+# Skills
 
-完整 Skill 就是提交根的 [`../skill.md`](../skill.md)，一篇读完。本目录里的子文件是附录，不是另一套入口。
+The complete Skill is the submission-root [`../skill.md`](../skill.md). Files in this folder are appendices, not a second entry point.

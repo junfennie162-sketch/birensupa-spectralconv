@@ -1,6 +1,6 @@
 {
   "meta": {
-    "updated_at": "2026-08-14T01:44:34Z",
+    "updated_at": "2026-08-14T13:16:24Z",
     "last_phase_marked": "submit_gate",
     "notes": "SpectralConv auto 3.797/8.037/29.295 ms (warmup=10, iters=100). FNO L2=0.035012 (spec_ref_r2)."
   },
@@ -289,7 +289,9 @@
       "results/figures/fno_ns_pred_vs_gt_2026-08-01.png",
       "results/figures/fno_ns_sample_strip_2026-08-01.png",
       "results/figures/fno_ns_pred_vs_gt_2026-08-02.png",
-      "results/figures/fno_ns_sample_strip_2026-08-02.png"
+      "results/figures/fno_ns_sample_strip_2026-08-02.png",
+      "results/figures/fno_ns_pred_vs_gt_2026-08-14.png",
+      "results/figures/fno_ns_sample_strip_2026-08-14.png"
     ],
     "checkpoint": "/workspace/ai4s-f/submission/fno_ns/checkpoints/fno_ns_demo.pt",
     "resume_extra_epochs": 50,
@@ -431,47 +433,38 @@
       "note": "protocol-aligned public NS64 + public_demo ckpt; gate=B4; not Spectral formal ms"
     },
     "visualization": {
-      "shared_colorbar_for_pred_gt": true,
-      "absolute_and_relative_error_maps": true,
-      "sample_index": 0,
-      "target_time_step": 10,
-      "sample_relative_l2": 0.05140529200434685,
       "data": "public_ns64",
-      "figure": "results/figures/fno_ns_pred_vs_gt_2026-08-02.png",
-      "demo_copy": "demo/media/fno_ns_pred_vs_gt_2026-08-02.png",
-      "sample_strip": "results/figures/fno_ns_sample_strip_2026-08-02.png",
-      "sample_strip_records": [
-        {
-          "label": "best",
-          "sample_index": 10,
-          "sample_relative_l2": 0.022601732617623382
-        },
-        {
-          "label": "median",
-          "sample_index": 7,
-          "sample_relative_l2": 0.02926202082347886
-        },
-        {
-          "label": "worst",
-          "sample_index": 13,
-          "sample_relative_l2": 0.05907211583940108
-        }
-      ],
-      "strip": {
+      "layout": "typical_triplet + best_typical_worst_strip",
+      "sample_index": 44,
+      "sample_relative_l2": 0.03501016307276452,
+      "official_relative_l2": 0.035012,
+      "target_time_step": 10,
+      "picks": {
         "best": {
-          "index": 86,
-          "sample_relative_l2": 0.019410131499171257
+          "sample_index": 86,
+          "sample_relative_l2": 0.01941012592816317
         },
-        "median": {
-          "index": 3,
-          "sample_relative_l2": 0.030071739107370377
+        "typical": {
+          "sample_index": 44,
+          "sample_relative_l2": 0.03501016307276452
         },
         "worst": {
-          "index": 54,
-          "sample_relative_l2": 0.08767800033092499
+          "sample_index": 54,
+          "sample_relative_l2": 0.08767798012660237
         }
       },
-      "note": "Figures after spec_ref_r2 promote (20260811_021758)."
+      "zh": {
+        "hero": "/workspace/ai4s-f/submission/results/figures/01_\u5178\u578b\u6837\u672c_\u9884\u6d4b\u4e0e\u771f\u503c.png",
+        "hero_demo": "/workspace/ai4s-f/submission/demo/media/01_\u5178\u578b\u6837\u672c_\u9884\u6d4b\u4e0e\u771f\u503c.png",
+        "strip": "/workspace/ai4s-f/submission/results/figures/02_\u6700\u597d_\u5178\u578b_\u6700\u5dee.png",
+        "strip_demo": "/workspace/ai4s-f/submission/demo/media/02_\u6700\u597d_\u5178\u578b_\u6700\u5dee.png"
+      },
+      "en": {
+        "hero": "/workspace/ai4s-f/submission/results/figures/01_typical_sample_pred_vs_gt.png",
+        "hero_demo": "/workspace/ai4s-f/submission/demo/media/01_typical_sample_pred_vs_gt.png",
+        "strip": "/workspace/ai4s-f/submission/results/figures/02_best_typical_worst.png",
+        "strip_demo": "/workspace/ai4s-f/submission/demo/media/02_best_typical_worst.png"
+      }
     },
     "train_throughput": {
       "status": "measured",

@@ -1,0 +1,109 @@
+{
+  "task": "pruned_geo_probe",
+  "all_ok": true,
+  "accuracy": [
+    {
+      "path": "scalar",
+      "res": 64,
+      "rel": 7.219463994067201e-06,
+      "ok": true
+    },
+    {
+      "path": "scalar",
+      "res": 128,
+      "rel": 1.4532737404988094e-05,
+      "ok": true
+    },
+    {
+      "path": "scalar",
+      "res": 256,
+      "rel": 2.912381445225077e-05,
+      "ok": true
+    },
+    {
+      "path": "coop",
+      "res": 64,
+      "rel": 7.219463994067201e-06,
+      "ok": true
+    },
+    {
+      "path": "coop",
+      "res": 128,
+      "rel": 1.4532737404988094e-05,
+      "ok": true
+    },
+    {
+      "path": "coop",
+      "res": 256,
+      "rel": 2.912381445225077e-05,
+      "ok": true
+    },
+    {
+      "path": "scalar_fused256",
+      "res": 64,
+      "rel": 7.219463994067201e-06,
+      "ok": true
+    },
+    {
+      "path": "scalar_fused256",
+      "res": 128,
+      "rel": 1.4532737404988094e-05,
+      "ok": true
+    },
+    {
+      "path": "scalar_fused256",
+      "res": 256,
+      "rel": 2.912381445225077e-05,
+      "ok": true
+    },
+    {
+      "path": "coop_fused256",
+      "res": 64,
+      "rel": 7.219463994067201e-06,
+      "ok": true
+    },
+    {
+      "path": "coop_fused256",
+      "res": 128,
+      "rel": 1.4532737404988094e-05,
+      "ok": true
+    },
+    {
+      "path": "coop_fused256",
+      "res": 256,
+      "rel": 2.912381445225077e-05,
+      "ok": true
+    }
+  ],
+  "timing": [
+    {
+      "path": "scalar",
+      "ok": true,
+      "ms64": 1.665093144401908,
+      "ms128": 4.754642304033041,
+      "ms256": 16.441158019006252
+    },
+    {
+      "path": "coop",
+      "ok": true,
+      "ms64": 1.8583615776151419,
+      "ms128": 4.7924519050866365,
+      "ms256": 17.004991322755814
+    },
+    {
+      "path": "scalar_fused256",
+      "ok": true,
+      "ms64": 1.6619428526610136,
+      "ms128": 4.607490403577685,
+      "ms256": 14.708021096885204
+    },
+    {
+      "path": "coop_fused256",
+      "ok": true,
+      "ms64": 1.8679643981158733,
+      "ms128": 4.798502521589398,
+      "ms256": 15.128428442403674
+    }
+  ],
+  "writes_formal_perf": false
+}

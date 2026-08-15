@@ -43,9 +43,9 @@ Submitted operators must be **SUPA / Extension** on Biren `supa`. The official �
 
 **Screenshot (captured Friday, Aug 14, 2026, 10:41 PM UTC+8):**
 
-![Official reference is CPU/CUDA, not SUPA](截图_01_官网参考是CPU不是SUPA.png)
+![Official reference is CPU/CUDA, not SUPA](screenshot_01_official_ref_is_cpu_not_supa.png)
 
-![Same topic, second frame](截图_02_官网参考是CPU不是SUPA_续.png)
+![Same topic, second frame](screenshot_02_official_ref_is_cpu_not_supa_cont.png)
 
 ---
 
@@ -65,7 +65,7 @@ Mapped the handbook to the tree at the time:
 
 **Screenshot (captured Friday, Aug 14, 2026, 10:41 PM UTC+8):**
 
-![Required submission checklist](截图_03_赛题必交清单.png)
+![Required submission checklist](screenshot_03_required_assets.png)
 
 ---
 
@@ -81,7 +81,7 @@ After the upgrade: packed fused core, `use_sufft="auto"`, plan warmup, stronger 
 
 **Screenshot (captured Friday, Aug 14, 2026, 10:41 PM UTC+8):**
 
-![Compare partner then optimize](截图_04_对照搭档再优化.png)
+![Compare partner then optimize](screenshot_04_compare_then_optimize.png)
 
 ---
 
@@ -99,7 +99,7 @@ Alright, stop here. Summarize the remaining work into a document (same as yester
 
 **Screenshot (captured Friday, Aug 14, 2026, 10:41 PM UTC+8):**
 
-![SUDNN would not run](截图_05_SUDNN无法运行.png)
+![SUDNN would not run](screenshot_05_sudnn_cannot_run.png)
 
 ---
 
@@ -113,7 +113,7 @@ Collected `skill.md` / `skills/spectral_conv_dev/SKILL.md` / `skills/fno_experim
 
 **Screenshot (captured Friday, Aug 14, 2026, 10:41 PM UTC+8):**
 
-![Compile the Agent development log](截图_06_整理Agent开发日志.png)
+![Compile the Agent development log](screenshot_06_agent_log_cleanup.png)
 
 ---
 
@@ -133,7 +133,7 @@ These numbers match `development_log.md` record 23.
 
 **Screenshot (captured Friday, Aug 14, 2026, 10:41 PM UTC+8):**
 
-![FNO R7 verification](截图_07_FNO_R7验证.png)
+![FNO R7 verification](screenshot_07_fno_r7_check.png)
 
 ---
 
@@ -149,7 +149,7 @@ The desktop `submission` folder was about **73.5 MB / 446 files / 192 folders**,
 
 **Screenshot (captured Friday, Aug 14, 2026, 10:41 PM UTC+8):**
 
-![Pack size](截图_08_提交包体积.png)
+![Pack size](screenshot_08_pack_size.png)
 
 ---
 
@@ -168,7 +168,7 @@ The UI showed that reply about “9m ago”; capture time is the same evening as
 
 **Screenshot (captured Friday, Aug 14, 2026, 10:41 PM UTC+8):**
 
-![JSONL to Markdown](截图_09_JSONL转Markdown.png)
+![JSONL to Markdown](screenshot_09_jsonl_to_markdown.png)
 
 ---
 
@@ -176,13 +176,13 @@ The UI showed that reply about “9m ago”; capture time is the same evening as
 
 | # | Chat date | Heading (same style as 01/02) | File | Topic |
 |---|-----------|-------------------------------|------|-------|
-| 1–2 | 2026-07-21 | Tuesday, Jul 21, 2026, ~evening (UTC+8) | `截图_01` `截图_02` | Official ref is CPU/CUDA; submission must be SUPA |
-| 3 | 2026-07-21 | Tuesday, Jul 21, 2026, ~evening (UTC+8) | `截图_03` | Required checklist vs current tree |
-| 4 | 2026-07-24 | Friday, Jul 24, 2026, ~evening (UTC+8) | `截图_04` | Compare partner → optimize → Diff |
-| 5 | 2026-07-25 | Saturday, Jul 25, 2026, ~afternoon (UTC+8) | `截图_05` | SUDNN ErrorCode 6; stop and write up |
-| 6 | 2026-07-25 | Saturday, Jul 25, 2026, ~evening (UTC+8) | `截图_06` | Skill summary / `AGENT_DEV_LOG_2026-07-25.md` |
-| 7 | 2026-07-25 | Saturday, Jul 25, 2026, ~evening (UTC+8) | `截图_07` | FNO R7 / SpectralConv R7 |
-| 8 | 2026-07-28 | Tuesday, Jul 28, 2026, ~evening (UTC+8) | `截图_08` | Folder size vs official pack |
-| 9 | 2026-08-14 | Friday, Aug 14, 2026, 10:17 PM (UTC+8) | `截图_09` | JSONL unreadable → Markdown |
+| 1–2 | 2026-07-21 | Tuesday, Jul 21, 2026, ~evening (UTC+8) | `screenshot_01` `screenshot_02` | Official ref is CPU/CUDA; submission must be SUPA |
+| 3 | 2026-07-21 | Tuesday, Jul 21, 2026, ~evening (UTC+8) | `screenshot_03` | Required checklist vs current tree |
+| 4 | 2026-07-24 | Friday, Jul 24, 2026, ~evening (UTC+8) | `screenshot_04` | Compare partner → optimize → Diff |
+| 5 | 2026-07-25 | Saturday, Jul 25, 2026, ~afternoon (UTC+8) | `screenshot_05` | SUDNN ErrorCode 6; stop and write up |
+| 6 | 2026-07-25 | Saturday, Jul 25, 2026, ~evening (UTC+8) | `screenshot_06` | Skill summary / `AGENT_DEV_LOG_2026-07-25.md` |
+| 7 | 2026-07-25 | Saturday, Jul 25, 2026, ~evening (UTC+8) | `screenshot_07` | FNO R7 / SpectralConv R7 |
+| 8 | 2026-07-28 | Tuesday, Jul 28, 2026, ~evening (UTC+8) | `screenshot_08` | Folder size vs official pack |
+| 9 | 2026-08-14 | Friday, Aug 14, 2026, 10:17 PM (UTC+8) | `screenshot_09` | JSONL unreadable → Markdown |
 
 PNG capture time for all nine: **Friday, Aug 14, 2026, 10:41 PM (UTC+8)**.

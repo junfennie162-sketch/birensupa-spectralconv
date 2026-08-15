@@ -1,17 +1,21 @@
-# 比赛提交材料（中英两版）
+# Contest pack (English only)
 
-GitHub 单文件上限 100MB。本目录是**可直接下载**的交卷压缩包（不含公开 NS 数据 `.pt`）。
+GitHub file size limit is 100 MB. This folder is the **downloadable** submission archive (no official NS `.pt`).
 
-仓库：https://github.com/junfennie162-sketch/birensupa-spectralconv
+Repo: https://github.com/junfennie162-sketch/birensupa-spectralconv
 
-| 文件 | 说明 |
-|------|------|
-| [`翻斗花园_赛道五_提交材料_英文版_20260814.tar.gz`](翻斗花园_赛道五_提交材料_英文版_20260814.tar.gz) | 英文路径（`spectral_conv/`、`fno_ns/`） |
-| [`翻斗花园_赛道五_提交材料_中文版_20260814.tar.gz`](翻斗花园_赛道五_提交材料_中文版_20260814.tar.gz) | 中文路径（`必选算子-卷积/`、`进阶模型-FNO/`） |
-| [`目录对照.md`](目录对照.md) | 中英目录对照 |
+| File | What it is |
+|------|------------|
+| [`FanDouGarden_Track5_English_20260815.tar.gz`](FanDouGarden_Track5_English_20260815.tar.gz) | English tree (`spectral_conv/`, `fno_ns/`, pruned-DFT kernels) |
+| [`FanDouGarden_Track5_English_20260815.tar.gz.sha256`](FanDouGarden_Track5_English_20260815.tar.gz.sha256) | SHA-256 |
 
-浏览器点 `.tar.gz` → Download。两包是同一套材料，只是目录名和说明语言不同。
+Click the `.tar.gz` in the browser → Download. There is **one** pack. The older Chinese-path archive was removed.
 
-解压后根上 `README.md` / `skill.md` / `results.md` / `development_log.md` **保持英文文件名**（官网按此查找）。
+After unpack, root filenames stay `README.md` / `skill.md` / `results.md` / `development_log.md` (the contest looks those up).
 
-中文包建议阅读顺序：根 `README.md` → `必选算子-卷积/README.md` → `results.md`（同一官方数据上的对比）→ `测试结果/运行日志/README.md` → `交互日志/`。
+Suggested read order: root `README.md` → `skill.md` → `spectral_conv/README.md` → `results.md` → `AGENT_OFFICIAL.md`.
+
+```bash
+tar -tzf FanDouGarden_Track5_English_20260815.tar.gz | head
+sha256sum -c FanDouGarden_Track5_English_20260815.tar.gz.sha256
+```

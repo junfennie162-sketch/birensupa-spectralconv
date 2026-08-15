@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 加载壁仞 / SUPA / torch_br 运行环境
+# Load Biren / SUPA / torch_br.
 set -euo pipefail
 
 SDK="${SUPA_BASE:-/usr/local/birensupa/sdk/1.11.0.0.rc2}"
@@ -15,4 +15,4 @@ source "${ENV_SCRIPT}"
 export SUPA_BASE="${SDK}"
 
 echo "SUPA_BASE=${SUPA_BASE}"
-echo "env ready. next: build spectral_conv / run tests (serial GPU only)"
+echo "env ready. next: bash scripts/validate.sh (serial GPU only)"

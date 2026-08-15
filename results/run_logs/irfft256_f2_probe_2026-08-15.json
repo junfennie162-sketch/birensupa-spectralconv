@@ -1,0 +1,99 @@
+{
+  "task": "irfft256_f2_probe",
+  "all_ok": true,
+  "accuracy": [
+    {
+      "tag": "keep",
+      "case": "tiny_8x8",
+      "rel": 4.67537856728397e-08,
+      "ok": true
+    },
+    {
+      "tag": "keep",
+      "case": "small_32x32",
+      "rel": 1.1374232639616424e-07,
+      "ok": true
+    },
+    {
+      "tag": "keep",
+      "case": "target_64x64",
+      "rel": 7.161657759121021e-06,
+      "ok": true
+    },
+    {
+      "tag": "keep",
+      "case": "modes16_64",
+      "rel": 1.6655237576179187e-06,
+      "ok": true
+    },
+    {
+      "tag": "keep",
+      "case": "modes16_128",
+      "rel": 1.4658648076322277e-06,
+      "ok": true
+    },
+    {
+      "tag": "keep",
+      "case": "modes16_256",
+      "rel": 1.3727357089467403e-06,
+      "ok": true
+    },
+    {
+      "tag": "f2",
+      "case": "tiny_8x8",
+      "rel": 4.67537856728397e-08,
+      "ok": true
+    },
+    {
+      "tag": "f2",
+      "case": "small_32x32",
+      "rel": 1.1374232639616424e-07,
+      "ok": true
+    },
+    {
+      "tag": "f2",
+      "case": "target_64x64",
+      "rel": 7.161657759121021e-06,
+      "ok": true
+    },
+    {
+      "tag": "f2",
+      "case": "modes16_64",
+      "rel": 1.6655237576179187e-06,
+      "ok": true
+    },
+    {
+      "tag": "f2",
+      "case": "modes16_128",
+      "rel": 1.4658648076322277e-06,
+      "ok": true
+    },
+    {
+      "tag": "f2",
+      "case": "modes16_256",
+      "rel": 1.3727357089467403e-06,
+      "ok": true
+    }
+  ],
+  "timing": [
+    {
+      "tag": "keep",
+      "cpuin_64": 0.9648669790476561,
+      "cpuin_128": 2.2124434635043144,
+      "cpuin_256": 7.826096145436168
+    },
+    {
+      "tag": "f2",
+      "cpuin_64": 1.0659730061888695,
+      "cpuin_128": 2.3451183177530766,
+      "cpuin_256": 10.953288413584232
+    }
+  ],
+  "irfft_w256_ms": {
+    "keep": 0.9523218125104904,
+    "f2": 3.464257773011923
+  },
+  "delta_cpuin_256_ms": 3.1271922681480646,
+  "delta_iso_ms": 2.5119359605014324,
+  "writes_formal_perf": false
+}

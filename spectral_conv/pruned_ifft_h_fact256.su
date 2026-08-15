@@ -1,0 +1,456 @@
+#include <supa.h>
+#include <supa_device.h>
+#include <math.h>
+
+#ifndef M_PIf
+#define M_PIf 3.14159265358979323846f
+#endif
+
+#define BF(ar, ai, br, bi, cs, sn) \
+    do { \
+        const float _tr = (br) * (cs) - (bi) * (sn); \
+        const float _ti = (br) * (sn) + (bi) * (cs); \
+        const float _ar = (ar); \
+        const float _ai = (ai); \
+        (br) = _ar - _tr; \
+        (bi) = _ai - _ti; \
+        (ar) = _ar + _tr; \
+        (ai) = _ai + _ti; \
+    } while (0)
+
+static __device__ void dft8_plus(float &r0, float &i0, float &r1, float &i1, float &r2, float &i2, float &r3, float &i3, float &r4, float &i4, float &r5, float &i5, float &r6, float &i6, float &r7, float &i7) {
+    { const float tr = r1; r1 = r4; r4 = tr; const float ti = i1; i1 = i4; i4 = ti; }
+    { const float tr = r3; r3 = r6; r6 = tr; const float ti = i3; i3 = i6; i6 = ti; }
+    // stage 1 len=2
+    BF(r0, i0, r1, i1, 1.0f, 0.0f);
+    BF(r2, i2, r3, i3, 1.0f, 0.0f);
+    BF(r4, i4, r5, i5, 1.0f, 0.0f);
+    BF(r6, i6, r7, i7, 1.0f, 0.0f);
+    // stage 2 len=4
+    BF(r0, i0, r2, i2, 1.0f, 0.0f);
+    BF(r1, i1, r3, i3, 0.0f, 1.0f);
+    BF(r4, i4, r6, i6, 1.0f, 0.0f);
+    BF(r5, i5, r7, i7, 0.0f, 1.0f);
+    // stage 3 len=8
+    BF(r0, i0, r4, i4, 1.0f, 0.0f);
+    BF(r1, i1, r5, i5, 0.707106781f, 0.707106781f);
+    BF(r2, i2, r6, i6, 0.0f, 1.0f);
+    BF(r3, i3, r7, i7, -0.707106781f, 0.707106781f);
+}
+
+__global__ void pruned_ifft_h_m16_fact32x8_h256_kernel(int batch_size, int channels,
+                       const float *__restrict__ in_freq, float *__restrict__ row_freq) {
+    const int total = batch_size * channels * 16 * 32;
+    const int index = static_cast<int>(blockIdx.x * blockDim.x + threadIdx.x);
+    if (index >= total) {
+        return;
+    }
+    const int m2 = index & 15;
+    const int n1 = (index >> 4) & 31;
+    int rest = index >> 9;
+    const int ch = rest % channels;
+    const int b = rest / channels;
+    const int plane = ((b * channels + ch) * 256) * 32;
+    float u0r = 0.0f;
+    float u0i = 0.0f;
+    float u1r = 0.0f;
+    float u1i = 0.0f;
+    float u2r = 0.0f;
+    float u2i = 0.0f;
+    float u3r = 0.0f;
+    float u3i = 0.0f;
+    float u4r = 0.0f;
+    float u4i = 0.0f;
+    float u5r = 0.0f;
+    float u5i = 0.0f;
+    float u6r = 0.0f;
+    float u6i = 0.0f;
+    float u7r = 0.0f;
+    float u7i = 0.0f;
+    float step_s, step_c, wr, wi;
+    sincosf((2.0f * M_PIf) * static_cast<float>(n1) / 256.0f, &step_s, &step_c);
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (0 * 16 + m2) * 2);
+      u0r += z.x; u0i += z.y; }
+    wr = step_c;
+    wi = step_s;
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (1 * 16 + m2) * 2);
+      u1r += z.x * wr - z.y * wi;
+      u1i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (2 * 16 + m2) * 2);
+      u2r += z.x * wr - z.y * wi;
+      u2i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (3 * 16 + m2) * 2);
+      u3r += z.x * wr - z.y * wi;
+      u3i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (4 * 16 + m2) * 2);
+      u4r += z.x * wr - z.y * wi;
+      u4i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (5 * 16 + m2) * 2);
+      u5r += z.x * wr - z.y * wi;
+      u5i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (6 * 16 + m2) * 2);
+      u6r += z.x * wr - z.y * wi;
+      u6i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (7 * 16 + m2) * 2);
+      u7r += z.x * wr - z.y * wi;
+      u7i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (8 * 16 + m2) * 2);
+      u0r += z.x * wr - z.y * wi;
+      u0i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (9 * 16 + m2) * 2);
+      u1r += z.x * wr - z.y * wi;
+      u1i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (10 * 16 + m2) * 2);
+      u2r += z.x * wr - z.y * wi;
+      u2i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (11 * 16 + m2) * 2);
+      u3r += z.x * wr - z.y * wi;
+      u3i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (12 * 16 + m2) * 2);
+      u4r += z.x * wr - z.y * wi;
+      u4i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (13 * 16 + m2) * 2);
+      u5r += z.x * wr - z.y * wi;
+      u5i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (14 * 16 + m2) * 2);
+      u6r += z.x * wr - z.y * wi;
+      u6i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (15 * 16 + m2) * 2);
+      u7r += z.x * wr - z.y * wi;
+      u7i += z.x * wi + z.y * wr; }
+    dft8_plus(u0r, u0i, u1r, u1i, u2r, u2i, u3r, u3i, u4r, u4i, u5r, u5i, u6r, u6i, u7r, u7i);
+    const float p0r = u0r;
+    const float p0i = u0i;
+    u0r = 0.0f;
+    u0i = 0.0f;
+    const float p1r = u1r;
+    const float p1i = u1i;
+    u1r = 0.0f;
+    u1i = 0.0f;
+    const float p2r = u2r;
+    const float p2i = u2i;
+    u2r = 0.0f;
+    u2i = 0.0f;
+    const float p3r = u3r;
+    const float p3i = u3i;
+    u3r = 0.0f;
+    u3i = 0.0f;
+    const float p4r = u4r;
+    const float p4i = u4i;
+    u4r = 0.0f;
+    u4i = 0.0f;
+    const float p5r = u5r;
+    const float p5i = u5i;
+    u5r = 0.0f;
+    u5i = 0.0f;
+    const float p6r = u6r;
+    const float p6i = u6i;
+    u6r = 0.0f;
+    u6i = 0.0f;
+    const float p7r = u7r;
+    const float p7i = u7i;
+    u7r = 0.0f;
+    u7i = 0.0f;
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (240 * 16 + m2) * 2);
+      u0r += z.x; u0i += z.y; }
+    wr = step_c;
+    wi = step_s;
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (241 * 16 + m2) * 2);
+      u1r += z.x * wr - z.y * wi;
+      u1i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (242 * 16 + m2) * 2);
+      u2r += z.x * wr - z.y * wi;
+      u2i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (243 * 16 + m2) * 2);
+      u3r += z.x * wr - z.y * wi;
+      u3i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (244 * 16 + m2) * 2);
+      u4r += z.x * wr - z.y * wi;
+      u4i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (245 * 16 + m2) * 2);
+      u5r += z.x * wr - z.y * wi;
+      u5i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (246 * 16 + m2) * 2);
+      u6r += z.x * wr - z.y * wi;
+      u6i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (247 * 16 + m2) * 2);
+      u7r += z.x * wr - z.y * wi;
+      u7i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (248 * 16 + m2) * 2);
+      u0r += z.x * wr - z.y * wi;
+      u0i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (249 * 16 + m2) * 2);
+      u1r += z.x * wr - z.y * wi;
+      u1i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (250 * 16 + m2) * 2);
+      u2r += z.x * wr - z.y * wi;
+      u2i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (251 * 16 + m2) * 2);
+      u3r += z.x * wr - z.y * wi;
+      u3i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (252 * 16 + m2) * 2);
+      u4r += z.x * wr - z.y * wi;
+      u4i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (253 * 16 + m2) * 2);
+      u5r += z.x * wr - z.y * wi;
+      u5i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (254 * 16 + m2) * 2);
+      u6r += z.x * wr - z.y * wi;
+      u6i += z.x * wi + z.y * wr; }
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    { const float2 z = *reinterpret_cast<const float2 *>(in_freq + plane + (255 * 16 + m2) * 2);
+      u7r += z.x * wr - z.y * wi;
+      u7i += z.x * wi + z.y * wr; }
+    dft8_plus(u0r, u0i, u1r, u1i, u2r, u2i, u3r, u3i, u4r, u4i, u5r, u5i, u6r, u6i, u7r, u7i);
+    float ps, pc;
+    sincosf((2.0f * M_PIf) * 16.0f * static_cast<float>(n1) / 256.0f, &ps, &pc);
+    const float inv_h = 1.0f / 256.0f;
+    {
+        const float br = u0r * pc + u0i * ps;
+        const float bi = u0i * pc - u0r * ps;
+        const int h = n1 + 0;
+        const int out = plane + (h * 16 + m2) * 2;
+        row_freq[out] = (p0r + br) * inv_h;
+        row_freq[out + 1] = (p0i + bi) * inv_h;
+    }
+    {
+        const float br = u1r * pc + u1i * ps;
+        const float bi = u1i * pc - u1r * ps;
+        const int h = n1 + 32;
+        const int out = plane + (h * 16 + m2) * 2;
+        row_freq[out] = (p1r + br) * inv_h;
+        row_freq[out + 1] = (p1i + bi) * inv_h;
+    }
+    {
+        const float br = u2r * pc + u2i * ps;
+        const float bi = u2i * pc - u2r * ps;
+        const int h = n1 + 64;
+        const int out = plane + (h * 16 + m2) * 2;
+        row_freq[out] = (p2r + br) * inv_h;
+        row_freq[out + 1] = (p2i + bi) * inv_h;
+    }
+    {
+        const float br = u3r * pc + u3i * ps;
+        const float bi = u3i * pc - u3r * ps;
+        const int h = n1 + 96;
+        const int out = plane + (h * 16 + m2) * 2;
+        row_freq[out] = (p3r + br) * inv_h;
+        row_freq[out + 1] = (p3i + bi) * inv_h;
+    }
+    {
+        const float br = u4r * pc + u4i * ps;
+        const float bi = u4i * pc - u4r * ps;
+        const int h = n1 + 128;
+        const int out = plane + (h * 16 + m2) * 2;
+        row_freq[out] = (p4r + br) * inv_h;
+        row_freq[out + 1] = (p4i + bi) * inv_h;
+    }
+    {
+        const float br = u5r * pc + u5i * ps;
+        const float bi = u5i * pc - u5r * ps;
+        const int h = n1 + 160;
+        const int out = plane + (h * 16 + m2) * 2;
+        row_freq[out] = (p5r + br) * inv_h;
+        row_freq[out + 1] = (p5i + bi) * inv_h;
+    }
+    {
+        const float br = u6r * pc + u6i * ps;
+        const float bi = u6i * pc - u6r * ps;
+        const int h = n1 + 192;
+        const int out = plane + (h * 16 + m2) * 2;
+        row_freq[out] = (p6r + br) * inv_h;
+        row_freq[out + 1] = (p6i + bi) * inv_h;
+    }
+    {
+        const float br = u7r * pc + u7i * ps;
+        const float bi = u7i * pc - u7r * ps;
+        const int h = n1 + 224;
+        const int out = plane + (h * 16 + m2) * 2;
+        row_freq[out] = (p7r + br) * inv_h;
+        row_freq[out + 1] = (p7i + bi) * inv_h;
+    }
+}
+
+
+static void launch_1d(unsigned nthreads, dim3 &block, dim3 &grid) {
+    block = dim3(256);
+    grid = dim3((nthreads + 255u) / 256u);
+}
+
+extern "C" suError_t launch_pruned_ifft_h_fact32x8_h256(const float *in_freq, float *row_freq,
+                                                        int batch_size, int channels,
+                                                        suStream_t stream) {
+    const unsigned nthreads = static_cast<unsigned>(batch_size * channels * 16 * 32);
+    dim3 block, grid;
+    launch_1d(nthreads, block, grid);
+    pruned_ifft_h_m16_fact32x8_h256_kernel<<<grid, block, 0, stream>>>(
+        batch_size, channels, in_freq, row_freq);
+    return suGetLastError();
+}

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # 统一回归：按「改完什么 → 测什么」串行跑（禁止并发 GPU）
+# `all` 不含 test_perf.py，避免覆写正式 idle ms。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -15,6 +16,7 @@ run_spectral_accuracy() {
 
 run_spectral_perf() {
   echo "[test] spectral_conv perf      ← 文件: spectral_conv/test_perf.py"
+  echo "WARN: writes summary.json formal idle; idle GPU only"
   (cd "${ROOT}/spectral_conv" && python3 test_perf.py)
 }
 
@@ -30,12 +32,8 @@ run_fno_chain() {
 
 run_fno_batch16() {
   echo "[test] fno_ns batch16 perf     ← 文件: fno_ns/benchmark_fno_batch16.py"
+  echo "WARN: writes summary.json fno_ns.perf_batch16"
   (cd "${ROOT}/fno_ns" && python3 benchmark_fno_batch16.py)
-}
-
-run_fno_train_throughput() {
-  echo "[test] fno_ns train throughput ← 文件: fno_ns/benchmark_train_throughput.py"
-  (cd "${ROOT}/fno_ns" && python3 benchmark_train_throughput.py)
 }
 
 run_spectral_tune() {
@@ -45,12 +43,7 @@ run_spectral_tune() {
 
 run_spectral_sufft() {
   echo "[test] spectral_conv suFFT   ← 文件: spectral_conv/test_sufft_accuracy.py"
-  (cd "${ROOT}/spectral_conv" && ./build.sh && python3 test_sufft_accuracy.py)
-}
-
-run_spectral_sufft_perf() {
-  echo "[test] spectral_conv suFFT perf ← 文件: spectral_conv/test_sufft_perf.py"
-  (cd "${ROOT}/spectral_conv" && python3 test_sufft_perf.py)
+  (cd "${ROOT}/spectral_conv" && python3 test_sufft_accuracy.py)
 }
 
 run_spectral_backward() {
@@ -68,9 +61,9 @@ run_spectral_irregular() {
   (cd "${ROOT}/spectral_conv" && python3 test_irregular_shapes.py)
 }
 
-run_spectral_sol_style() {
-  echo "[test] spectral_conv SOL-style perf ← 文件: spectral_conv/test_sol_style_perf.py"
-  (cd "${ROOT}/spectral_conv" && python3 test_sol_style_perf.py)
+run_reproduce() {
+  echo "[test] reproduce pruned (no formal ms)"
+  "${ROOT}/scripts/reproduce.sh"
 }
 
 case "${MODE}" in
@@ -79,9 +72,6 @@ case "${MODE}" in
     ;;
   sufft)
     run_spectral_sufft
-    ;;
-  sufft-perf)
-    run_spectral_sufft_perf
     ;;
   perf)
     run_spectral_perf
@@ -95,9 +85,6 @@ case "${MODE}" in
   irregular)
     run_spectral_irregular
     ;;
-  sol-perf)
-    run_spectral_sol_style
-    ;;
   fno)
     run_fno
     ;;
@@ -107,26 +94,22 @@ case "${MODE}" in
   fno-batch16|batch16)
     run_fno_batch16
     ;;
-  fno-train-throughput|train-throughput)
-    run_fno_train_throughput
-    ;;
   tune)
     run_spectral_tune
+    ;;
+  reproduce)
+    run_reproduce
     ;;
   all)
     run_spectral_accuracy
     run_spectral_sufft
-    run_spectral_perf
-    run_spectral_sufft_perf
     run_spectral_backward
     run_spectral_3d
     run_spectral_irregular
-    run_fno
     run_fno_chain
-    run_fno_batch16
     ;;
   *)
-    echo "usage: $0 [all|accuracy|sufft|sufft-perf|perf|backward|3d|irregular|sol-perf|fno|fno-chain|fno-batch16|fno-train-throughput|tune]"
+    echo "usage: $0 [all|accuracy|sufft|perf|backward|3d|irregular|fno|fno-chain|fno-batch16|tune|reproduce]"
     exit 2
     ;;
 esac

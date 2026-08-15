@@ -40,6 +40,9 @@ _BUFFER_CACHE_MAX = 4
 # (B, Cout, M1, M2, 2) SUPA tensor each call; for hot loops that's
 # ~20 ms/call of pure allocator churn on Biren. Cache it.
 _Y_FREQ_CACHE: dict[tuple, torch.Tensor] = {}
+# CPU-in only: reuse irfft spatial buffer. Do NOT return this to FNO
+# (to_cpu=False); aliasing with the next layer's add/IN breaks the chain.
+_SPATIAL_OUT_CACHE: dict[tuple, torch.Tensor] = {}
 # NOTE: caching the per-call corner slices (`x_freq[:, :, :M1, :M2, :]`)
 # did NOT help — the SUPA `.copy_()` from a strided slice costs more than
 # `.contiguous()` because PyTorch's strided->contig path on SUPA is a
@@ -233,23 +236,37 @@ def clear_weight_supa_cache() -> None:
     _HOST_OUT_CACHE.clear()
     _OUT_FREQ_CPU_CACHE.clear()
     _PINNED_INPUT_CACHE.clear()
+    _SPATIAL_OUT_CACHE.clear()
+
+
+def _env_flag(name: str, default_on: bool) -> bool:
+    raw = os.environ.get(name, "1" if default_on else "").strip().lower()
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    return default_on
 
 
 def _roundtrip_supa_input(x: torch.Tensor) -> torch.Tensor:
-    """Materialize SUPA-origin activations into a host-origin device buffer.
+    """Copy into a host-origin device buffer (suFFT-safe; also cuts alloc).
 
     This SDK's suFFT mis-reads storages first allocated by device kernels.
     R7: seed a buffer with CPU→SUPA zeros (host-origin storage), then
-    ``safe.copy_(x)`` (device→device). Correct vs CPU FFT and faster than
-    R6 pinned D2H+H2D (~10.4 vs ~11.1 ms at B16×C32×64×64 single fused).
+    ``safe.copy_(x)`` (device→device or host→device). Correct vs CPU FFT
+    and faster than R6 pinned D2H+H2D (~10.4 vs ~11.1 ms at
+    B16×C32×64×64 single fused).
 
     Critical (R13 FAIL): never feed this safe buffer into SUDNN Conv2d (or
     return it as the FNO layer activation). Conv permanently taints the
     storage for subsequent suFFT — even a later ``copy_`` into the same
     buffer does not restore correct spectra. Keep safe FFT-only; conv must
     read the original device activation tensor.
+
+    CPU-origin inputs reuse the same cached buffer so official CPU-in
+    calls do not ``cudaMalloc`` a fresh H2D destination every time.
     """
-    key = (tuple(int(dimension) for dimension in x.shape), str(x.dtype))
+    key = (tuple(int(dimension) for dimension in x.shape), "float32")
     safe = _SAFE_INPUT_CACHE.get(key)
     if (
         safe is None
@@ -263,14 +280,34 @@ def _roundtrip_supa_input(x: torch.Tensor) -> torch.Tensor:
         if len(_SAFE_INPUT_CACHE) >= cap:
             _SAFE_INPUT_CACHE.pop(next(iter(_SAFE_INPUT_CACHE)))
         _SAFE_INPUT_CACHE[key] = safe
-    # R10: avoid redundant float cast when already float32.
     src = x.detach()
     if src.dtype != torch.float32:
         src = src.to(torch.float32)
-    elif not src.is_contiguous():
+    if not src.is_contiguous():
         src = src.contiguous()
     safe.copy_(src, non_blocking=False)
     return safe
+
+
+def _spatial_out_buffer(
+    batch_size: int,
+    channels: int,
+    height: int,
+    width: int,
+    device: torch.device,
+) -> torch.Tensor:
+    """Reuse irfft destination for CPU-in. Do not return this tensor to FNO."""
+    key = (batch_size, channels, height, width, str(device))
+    buf = _SPATIAL_OUT_CACHE.get(key)
+    if buf is None:
+        buf = torch.empty(
+            batch_size, channels, height, width, device=device, dtype=torch.float32
+        )
+        cap = _buffer_cache_max()
+        if len(_SPATIAL_OUT_CACHE) >= cap:
+            _SPATIAL_OUT_CACHE.pop(next(iter(_SPATIAL_OUT_CACHE)))
+        _SPATIAL_OUT_CACHE[key] = buf
+    return buf
 
 
 def _y_freq_buffer(
@@ -451,16 +488,30 @@ def spectral_conv2d_fused(
     to_cpu: bool = True,
     synchronize: bool | None = None,
 ) -> torch.Tensor:
-    """suFFT path with a correctness fallback for SUPA-resident inputs.
+    """Fused SpectralConv: pruned DFT by default, suFFT fallback.
 
-    This SDK's `sufftExecR2C` path produces incorrect spectra when handed a
-    storage first allocated by device kernels. R7 copies into a host-seeded
-    SUPA buffer (D2D) before FFT. CPU-origin inputs keep the original path.
+    Device-origin inputs still go through a host-seeded copy (R7) unless
+    ``SPECTRAL_PRUNED_SKIP_ROUNDTRIP=1`` (unsafe for FNO / PyTorch activations).
     """
-    if x.device.type == "supa":
-        x_supa = _roundtrip_supa_input(x)
+    # Default ON for fused: SUFFT-free pruned DFT (qw-style kept modes).
+    # Set SPECTRAL_PRUNED_FFT=0 / SPECTRAL_PRUNED_INV=0 to restore suFFT trunc.
+    pruned_fft = _env_flag("SPECTRAL_PRUNED_FFT", True)
+    pruned_inv = _env_flag("SPECTRAL_PRUNED_INV", True)
+    # Pruned kernels do not need suFFT's host-origin storage, but FNO still
+    # feeds SUDNN Conv/IN activations into FFT. Default keeps the R7 copy.
+    # SPECTRAL_PRUNED_SKIP_ROUNDTRIP=1 skips it (device-only spectral probes).
+    # Default OFF: FNO still runs SUDNN Conv/IN before FFT; those storages
+    # need the R7 host-origin copy. SPECTRAL_PRUNED_SKIP_ROUNDTRIP=1 is only
+    # for device-only spectral→spectral probes after a dedicated accuracy gate.
+    skip_roundtrip = pruned_fft and _env_flag("SPECTRAL_PRUNED_SKIP_ROUNDTRIP", False)
+    if x.device.type == "supa" and skip_roundtrip:
+        x_supa = x.detach()
+        if x_supa.dtype != torch.float32:
+            x_supa = x_supa.to(torch.float32)
+        if not x_supa.is_contiguous():
+            x_supa = x_supa.contiguous()
     else:
-        x_supa = x.detach().to("supa", torch.float32).contiguous()
+        x_supa = _roundtrip_supa_input(x)
     batch_size, _channels_in, height, width = x_supa.shape
     channels_out = int(weights1.shape[1])
     width_freq = width // 2 + 1
@@ -480,11 +531,17 @@ def spectral_conv2d_fused(
         trunc_col = False
     else:
         trunc_col = (modes2 / max(width_freq, 1)) <= 0.50
-    if trunc_col:
+    if pruned_fft:
+        x_freq = spectral_conv_ext.rfft2_pruned_trunc(x_supa, modes1, modes2)
+        freq_w = modes2
+        trunc_col = True
+    elif trunc_col:
         x_freq = spectral_conv_ext.rfft2_sufft_trunc(x_supa, modes2)
         freq_w = modes2
     else:
-        x_freq = spectral_conv_ext.rfft2_sufft(x_supa)
+        # Full-width C2C via the same packed implementation. Legacy
+        # rfft2_sufft/irfft2_sufft fail isolated correctness (rel ~1, 2026-08-15).
+        x_freq = spectral_conv_ext.rfft2_sufft_trunc(x_supa, width_freq)
         freq_w = width_freq
     # Path select: R11 full gather-scatter (default) | R10 corner scatter |
     # R5 dual_out. SPECTRAL_FULL_SCATTER=0 → R10; SPECTRAL_DUAL_SCATTER=0 → R5.
@@ -500,12 +557,15 @@ def spectral_conv2d_fused(
     if use_full_scatter:
         # modes in key → alloc zeros once; cache hits skip zero_ (corners
         # fully overwritten, mid-band stays 0). Packed trunc: mid-band gone.
+        # Full-width spectrum must zero extra columns; packed trunc mid-rows
+        # stay 0 from first alloc so cache hits can skip zero_.
+        need_zero = freq_w > modes2
         out_freq = _out_freq_buffer(
             batch_size, channels_out, height, freq_w, x_freq.device,
-            zero=False, modes1=modes1, modes2=modes2,
+            zero=need_zero, modes1=modes1, modes2=modes2,
         )
         spectral_conv_ext.spectral_mul_dual_full_scatter_out(
-            x_freq, w1_supa, w2_supa, out_freq, modes1, modes2, False,
+            x_freq, w1_supa, w2_supa, out_freq, modes1, modes2, need_zero,
         )
     elif use_dual_scatter:
         out_freq = _out_freq_buffer(
@@ -537,10 +597,22 @@ def spectral_conv2d_fused(
         out_freq[:, :, :modes1, :modes2, :] = y1_buf
         out_freq[:, :, -modes1:, :modes2, :] = y2_buf
 
-    if trunc_col:
+    if pruned_inv and freq_w == modes2:
+        if to_cpu:
+            y = _spatial_out_buffer(
+                batch_size, channels_out, height, width, out_freq.device,
+            )
+            spectral_conv_ext.irfft2_pruned_packed_out(
+                out_freq, height, width, modes1, modes2, y
+            )
+        else:
+            y = spectral_conv_ext.irfft2_pruned_packed(
+                out_freq, height, width, modes1, modes2
+            )
+    elif trunc_col:
         y = spectral_conv_ext.irfft2_sufft_trunc(out_freq, height, width, modes2)
     else:
-        y = spectral_conv_ext.irfft2_sufft(out_freq, height, width)
+        y = spectral_conv_ext.irfft2_sufft_trunc(out_freq, height, width, width_freq)
     do_sync = to_cpu if synchronize is None else synchronize
     if do_sync:
         torch_br.supa.synchronize()

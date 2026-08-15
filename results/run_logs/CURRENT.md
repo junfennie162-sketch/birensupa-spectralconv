@@ -1,12 +1,12 @@
-# CURRENT · 现行指针（2026-08-14）
+# CURRENT · pointers (2026-08-15)
 
-| 项 | 现行值 |
-|----|--------|
-| 公开 NS64 L2 | **0.035012** · `spec_ref_r2` · **v10** |
-| Spectral idle | **3.797 / 8.037 / 29.295 ms**（2026-08-14 复测） |
-| 评测报告 | [`/workspace/评测报告_最新指标_2026-08-14_095200.md`](/workspace/评测报告_最新指标_2026-08-14_095200.md) |
-| Agent 抽查 | [`AGENT_OFFICIAL.md`](../../AGENT_OFFICIAL.md) |
-| 正确性报告 | [`正确性验证报告_2026-08-14.md`](正确性验证报告_2026-08-14.md) |
-| 性能报告 | [`性能检测报告_2026-08-14.md`](性能检测报告_2026-08-14.md) |
-| 交接稿 | [`HANDOFF_NEW_SESSION_2026-08-14.md`](HANDOFF_NEW_SESSION_2026-08-14.md) |
-| 历史日志 | [`_history/`](_history/)（答辩轨迹，勿当现行入口） |
+| Item | Value |
+|------|--------|
+| Public NS64 L2 | **0.035012** |
+| Spectral idle (formal) | **3.797 / 8.037 / 29.295 ms** (2026-08-14 recheck) |
+| Default hot path | pruned DFT (unofficial; not promoted) |
+| Agent audit | [`AGENT_OFFICIAL.md`](../../AGENT_OFFICIAL.md) |
+| Accuracy report | [`spectral_accuracy_2026-08-14.md`](spectral_accuracy_2026-08-14.md) |
+| Perf report | [`spectral_perf_2026-08-14.md`](spectral_perf_2026-08-14.md) |
+| Unofficial pruned probe | [`pruned_continue_test_2026-08-15.md`](pruned_continue_test_2026-08-15.md) |
+| One-command check | [`scripts/validate.sh`](../../scripts/validate.sh) (build + accuracy + unofficial probe; **does not** write formal idle) |

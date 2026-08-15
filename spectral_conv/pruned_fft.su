@@ -1,0 +1,662 @@
+#include <supa.h>
+#include <supa_device.h>
+#include <math.h>
+
+#ifndef SPECTRAL_MUL_BLOCK
+#define SPECTRAL_MUL_BLOCK 256
+#endif
+#ifndef M_PIf
+#define M_PIf 3.14159265358979323846f
+#endif
+
+extern "C" suError_t launch_pruned_ifft_h_x2_named(const float *in_freq, float *row_freq,
+                                                   int batch_size, int channels, int height,
+                                                   suStream_t stream);
+extern "C" suError_t launch_pruned_ifft_h_fact16x4_h64(const float *in_freq, float *row_freq,
+                                                       int batch_size, int channels,
+                                                       suStream_t stream);
+extern "C" suError_t launch_pruned_ifft_h_fact16x8_h128(const float *in_freq, float *row_freq,
+                                                        int batch_size, int channels,
+                                                        suStream_t stream);
+extern "C" suError_t launch_pruned_ifft_h_fact32x8_h256(const float *in_freq, float *row_freq,
+                                                        int batch_size, int channels,
+                                                        suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_x2_w128(const float *row_freq, float *spatial,
+                                                   int batch_size, int channels, int height,
+                                                   suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_x2_ilp_w64(const float *row_freq, float *spatial,
+                                                      int batch_size, int channels, int height,
+                                                      suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_x2_ilp_w128(const float *row_freq, float *spatial,
+                                                       int batch_size, int channels, int height,
+                                                       suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_x2_ilp_w256(const float *row_freq, float *spatial,
+                                                       int batch_size, int channels, int height,
+                                                       suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_x4_ilp_w256(const float *row_freq, float *spatial,
+                                                       int batch_size, int channels, int height,
+                                                       suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_x4_smem_w256(const float *row_freq, float *spatial,
+                                                        int batch_size, int channels, int height,
+                                                        suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_x4_stride_lut_w256(const float *row_freq, float *spatial,
+                                                              int batch_size, int channels, int height,
+                                                              suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_x4_ilp_r2_w256(const float *row_freq, float *spatial,
+                                                         int batch_size, int channels, int height,
+                                                         suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_x4_ilp_w128(const float *row_freq, float *spatial,
+                                                       int batch_size, int channels, int height,
+                                                       suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_x8_ilp_w256(const float *row_freq, float *spatial,
+                                                       int batch_size, int channels, int height,
+                                                       suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_fact16x16_w256(const float *row_freq, float *spatial,
+                                                          int batch_size, int channels, int height,
+                                                          suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_fact16x16_vec4_w256(const float *row_freq, float *spatial,
+                                                              int batch_size, int channels, int height,
+                                                              suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_fact16x8_vec4_w128(const float *row_freq, float *spatial,
+                                                             int batch_size, int channels, int height,
+                                                             suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_fact16x8_w128(const float *row_freq, float *spatial,
+                                                         int batch_size, int channels, int height,
+                                                         suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_fact16x4_w64(const float *row_freq, float *spatial,
+                                                        int batch_size, int channels, int height,
+                                                        suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_fact8x8_w64(const float *row_freq, float *spatial,
+                                                       int batch_size, int channels, int height,
+                                                       suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_x4_w64(const float *row_freq, float *spatial,
+                                                  int batch_size, int channels, int height,
+                                                  suStream_t stream);
+extern "C" suError_t launch_pruned_irfft_w_x2_w256(const float *row_freq, float *spatial,
+                                                   int batch_size, int channels, int height,
+                                                   suStream_t stream);
+
+// Inverse FFT along H using only the two FNO corners, then /H.
+// in/out packed [B, C, H, M2, 2]. Mid-band of `in` is ignored.
+__global__ void pruned_ifft_h_kernel(int batch_size, int channels, int height,
+                                     int modes1, int modes2,
+                                     const float *__restrict__ in_freq,
+                                     float *__restrict__ row_freq) {
+    const int total = batch_size * channels * height * modes2;
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= total) {
+        return;
+    }
+    const int m2 = index % modes2;
+    int rem = index / modes2;
+    const int h = rem % height;
+    rem /= height;
+    const int ch = rem % channels;
+    const int b = rem / channels;
+    const float two_pi_h = (2.0f * M_PIf) * static_cast<float>(h) / static_cast<float>(height);
+    float acc_r = 0.0f;
+    float acc_i = 0.0f;
+    const int plane = ((b * channels + ch) * height) * modes2 * 2;
+    float step_s, step_c;
+    sincosf(two_pi_h, &step_s, &step_c);
+    float wr = 1.0f;
+    float wi = 0.0f;
+    for (int m1 = 0; m1 < modes1; ++m1) {
+        if ((m1 & 31) == 0) {
+            sincosf(two_pi_h * static_cast<float>(m1), &wi, &wr);
+        }
+        const int top = plane + (m1 * modes2 + m2) * 2;
+        const float xr = in_freq[top];
+        const float xi = in_freq[top + 1];
+        acc_r += xr * wr - xi * wi;
+        acc_i += xr * wi + xi * wr;
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    const int kh0 = height - modes1;
+    sincosf(two_pi_h * static_cast<float>(kh0), &wi, &wr);
+    for (int m1 = 0; m1 < modes1; ++m1) {
+        if ((m1 & 31) == 0) {
+            sincosf(two_pi_h * static_cast<float>(kh0 + m1), &wi, &wr);
+        }
+        const int bot = plane + ((kh0 + m1) * modes2 + m2) * 2;
+        const float br = in_freq[bot];
+        const float bi = in_freq[bot + 1];
+        acc_r += br * wr - bi * wi;
+        acc_i += br * wi + bi * wr;
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    const float inv_h = 1.0f / static_cast<float>(height);
+    const int out = plane + (h * modes2 + m2) * 2;
+    row_freq[out] = acc_r * inv_h;
+    row_freq[out + 1] = acc_i * inv_h;
+}
+
+// irfft along W from first modes2 bins (rest 0). No Nyquist in official modes=16.
+__global__ void pruned_irfft_w_kernel(int batch_size, int channels, int height,
+                                      int width, int modes2,
+                                      const float *__restrict__ row_freq,
+                                      float *__restrict__ spatial) {
+    const int total = batch_size * channels * height * width;
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= total) {
+        return;
+    }
+    const int w = index % width;
+    int rem = index / width;
+    const int h = rem % height;
+    rem /= height;
+    const int ch = rem % channels;
+    const int b = rem / channels;
+    const int row_base = ((b * channels + ch) * height + h) * modes2 * 2;
+    float acc = row_freq[row_base];
+    const float two_pi_w = (2.0f * M_PIf) * static_cast<float>(w) / static_cast<float>(width);
+    float step_s, step_c;
+    sincosf(two_pi_w, &step_s, &step_c);
+    float wr = step_c;
+    float wi = step_s;
+    for (int k = 1; k < modes2; ++k) {
+        if ((k & 31) == 0) {
+            sincosf(two_pi_w * static_cast<float>(k), &wi, &wr);
+        }
+        const float xr = row_freq[row_base + k * 2];
+        const float xi = row_freq[row_base + k * 2 + 1];
+        acc += 2.0f * (xr * wr - xi * wi);
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    spatial[((b * channels + ch) * height + h) * width + w] =
+        acc / static_cast<float>(width);
+}
+
+__global__ void pruned_irfft_w_m16_kernel(int batch_size, int channels, int height,
+                                          int width,
+                                          const float *__restrict__ row_freq,
+                                          float *__restrict__ spatial) {
+    const int total = batch_size * channels * height * width;
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= total) {
+        return;
+    }
+    const int w = index % width;
+    int rest = index / width;
+    const int h = rest % height;
+    rest /= height;
+    const int ch = rest % channels;
+    const int b = rest / channels;
+    const int row_base = ((b * channels + ch) * height + h) * 32;
+    float acc = row_freq[row_base];
+    const float two_pi_w = (2.0f * M_PIf) * static_cast<float>(w) / static_cast<float>(width);
+    float step_s, step_c;
+    sincosf(two_pi_w, &step_s, &step_c);
+    float wr = step_c;
+    float wi = step_s;
+#pragma unroll
+    for (int k = 1; k < 16; ++k) {
+        const float xr = row_freq[row_base + k * 2];
+        const float xi = row_freq[row_base + k * 2 + 1];
+        acc += 2.0f * (xr * wr - xi * wi);
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    spatial[((b * channels + ch) * height + h) * width + w] =
+        acc / static_cast<float>(width);
+}
+
+__global__ void pruned_irfft_w_m16_x2_kernel(int batch_size, int channels, int height,
+                                             int width,
+                                             const float *__restrict__ row_freq,
+                                             float *__restrict__ spatial) {
+    const int pairs = width >> 1;
+    const int total = batch_size * channels * height * pairs;
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= total) {
+        return;
+    }
+    const int pair = index & 31;
+    int rest = index >> 5;
+    const int h = rest % height;
+    rest /= height;
+    const int ch = rest % channels;
+    const int b = rest / channels;
+    const int row_base = ((b * channels + ch) * height + h) * 32;
+    const float2 z0 = *reinterpret_cast<const float2 *>(row_freq + row_base);
+    const float r0 = z0.x;
+    const float2 z1 = *reinterpret_cast<const float2 *>(row_freq + row_base + 2);
+    const float r1 = z1.x, i1 = z1.y;
+    const float2 z2 = *reinterpret_cast<const float2 *>(row_freq + row_base + 4);
+    const float r2 = z2.x, i2 = z2.y;
+    const float2 z3 = *reinterpret_cast<const float2 *>(row_freq + row_base + 6);
+    const float r3 = z3.x, i3 = z3.y;
+    const float2 z4 = *reinterpret_cast<const float2 *>(row_freq + row_base + 8);
+    const float r4 = z4.x, i4 = z4.y;
+    const float2 z5 = *reinterpret_cast<const float2 *>(row_freq + row_base + 10);
+    const float r5 = z5.x, i5 = z5.y;
+    const float2 z6 = *reinterpret_cast<const float2 *>(row_freq + row_base + 12);
+    const float r6 = z6.x, i6 = z6.y;
+    const float2 z7 = *reinterpret_cast<const float2 *>(row_freq + row_base + 14);
+    const float r7 = z7.x, i7 = z7.y;
+    const float2 z8 = *reinterpret_cast<const float2 *>(row_freq + row_base + 16);
+    const float r8 = z8.x, i8 = z8.y;
+    const float2 z9 = *reinterpret_cast<const float2 *>(row_freq + row_base + 18);
+    const float r9 = z9.x, i9 = z9.y;
+    const float2 z10 = *reinterpret_cast<const float2 *>(row_freq + row_base + 20);
+    const float r10 = z10.x, i10 = z10.y;
+    const float2 z11 = *reinterpret_cast<const float2 *>(row_freq + row_base + 22);
+    const float r11 = z11.x, i11 = z11.y;
+    const float2 z12 = *reinterpret_cast<const float2 *>(row_freq + row_base + 24);
+    const float r12 = z12.x, i12 = z12.y;
+    const float2 z13 = *reinterpret_cast<const float2 *>(row_freq + row_base + 26);
+    const float r13 = z13.x, i13 = z13.y;
+    const float2 z14 = *reinterpret_cast<const float2 *>(row_freq + row_base + 28);
+    const float r14 = z14.x, i14 = z14.y;
+    const float2 z15 = *reinterpret_cast<const float2 *>(row_freq + row_base + 30);
+    const float r15 = z15.x, i15 = z15.y;
+    const int out_base = ((b * channels + ch) * height + h) * 64;
+#pragma unroll
+    for (int dw = 0; dw < 2; ++dw) {
+        const int w = (pair << 1) + dw;
+        float acc = r0;
+        const float two_pi_w = (2.0f * M_PIf) * static_cast<float>(w) / 64.0f;
+        float step_s, step_c;
+        sincosf(two_pi_w, &step_s, &step_c);
+        float wr = step_c;
+        float wi = step_s;
+        acc += 2.0f * (r1 * wr - i1 * wi);
+        {
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        acc += 2.0f * (r2 * wr - i2 * wi);
+        {
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        acc += 2.0f * (r3 * wr - i3 * wi);
+        {
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        acc += 2.0f * (r4 * wr - i4 * wi);
+        {
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        acc += 2.0f * (r5 * wr - i5 * wi);
+        {
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        acc += 2.0f * (r6 * wr - i6 * wi);
+        {
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        acc += 2.0f * (r7 * wr - i7 * wi);
+        {
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        acc += 2.0f * (r8 * wr - i8 * wi);
+        {
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        acc += 2.0f * (r9 * wr - i9 * wi);
+        {
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        acc += 2.0f * (r10 * wr - i10 * wi);
+        {
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        acc += 2.0f * (r11 * wr - i11 * wi);
+        {
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        acc += 2.0f * (r12 * wr - i12 * wi);
+        {
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        acc += 2.0f * (r13 * wr - i13 * wi);
+        {
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        acc += 2.0f * (r14 * wr - i14 * wi);
+        {
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        acc += 2.0f * (r15 * wr - i15 * wi);
+        spatial[out_base + w] = acc * (1.0f / 64.0f);
+    }
+}
+
+// Real DFT along W: only first modes2 RFFT bins. x is [B,C,H,W] float.
+__global__ void pruned_rfft_w_kernel(int batch_size, int channels, int height,
+                                     int width, int modes2,
+                                     const float *__restrict__ x,
+                                     float *__restrict__ row_freq) {
+    const int total = batch_size * channels * height * modes2;
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= total) {
+        return;
+    }
+    const int m2 = index % modes2;
+    int rest = index / modes2;
+    const int h = rest % height;
+    rest /= height;
+    const int ch = rest % channels;
+    const int b = rest / channels;
+    const int x_base = ((b * channels + ch) * height + h) * width;
+    const float two_pi_k = -(2.0f * M_PIf) * static_cast<float>(m2) / static_cast<float>(width);
+    float acc_r = 0.0f;
+    float acc_i = 0.0f;
+    float step_s, step_c;
+    sincosf(two_pi_k, &step_s, &step_c);
+    float wr = 1.0f;
+    float wi = 0.0f;
+    for (int base = 0; base < width; base += 32) {
+        sincosf(two_pi_k * static_cast<float>(base), &wi, &wr);
+        const int lim = width - base < 32 ? width - base : 32;
+#pragma unroll 8
+        for (int i = 0; i < lim; ++i) {
+            const int w = base + i;
+            const float xv = x[x_base + w];
+            acc_r += xv * wr;
+            acc_i += xv * wi;
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+    }
+    const int out = ((b * channels + ch) * height + h) * modes2 * 2 + m2 * 2;
+    row_freq[out] = acc_r;
+    row_freq[out + 1] = acc_i;
+}
+
+// FFT along H, write only the two FNO corners into packed [B,C,H,M2,2] (mid 0).
+__global__ void pruned_fft_h_corners_kernel(int batch_size, int channels, int height,
+                                            int modes1, int modes2,
+                                            const float *__restrict__ row_freq,
+                                            float *__restrict__ packed) {
+    const int single = batch_size * channels * modes1 * modes2;
+    const int total = single * 2;
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= total) {
+        return;
+    }
+    const int corner = index / single;
+    const int local = index - corner * single;
+    const int m2 = local % modes2;
+    int rem = local / modes2;
+    const int m1 = rem % modes1;
+    rem /= modes1;
+    const int ch = rem % channels;
+    const int b = rem / channels;
+    const int kh = (corner == 0) ? m1 : (height - modes1 + m1);
+    const float two_pi_k = -(2.0f * M_PIf) * static_cast<float>(kh) / static_cast<float>(height);
+    float acc_r = 0.0f;
+    float acc_i = 0.0f;
+    const int row_plane = (b * channels + ch) * height * modes2 * 2;
+    float step_s, step_c;
+    sincosf(two_pi_k, &step_s, &step_c);
+    float wr = 1.0f;
+    float wi = 0.0f;
+    for (int base = 0; base < height; base += 32) {
+        sincosf(two_pi_k * static_cast<float>(base), &wi, &wr);
+        const int lim = height - base < 32 ? height - base : 32;
+#pragma unroll 8
+        for (int i = 0; i < lim; ++i) {
+            const int h = base + i;
+            const int in = row_plane + (h * modes2 + m2) * 2;
+            const float xr = row_freq[in];
+            const float xi = row_freq[in + 1];
+            acc_r += xr * wr - xi * wi;
+            acc_i += xr * wi + xi * wr;
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+    }
+    const int out =
+        ((b * channels + ch) * height + kh) * modes2 * 2 + m2 * 2;
+    packed[out] = acc_r;
+    packed[out + 1] = acc_i;
+}
+
+__global__ void pruned_ifft_h_m16_kernel(int batch_size, int channels, int height,
+                                         const float *__restrict__ in_freq,
+                                         float *__restrict__ row_freq) {
+    const int total = batch_size * channels * height * 16;
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= total) {
+        return;
+    }
+    const int m2 = index & 15;
+    int rem = index >> 4;
+    const int h = rem % height;
+    rem /= height;
+    const int ch = rem % channels;
+    const int b = rem / channels;
+    const float two_pi_h = (2.0f * M_PIf) * static_cast<float>(h) / static_cast<float>(height);
+    float acc_r = 0.0f;
+    float acc_i = 0.0f;
+    const int plane = ((b * channels + ch) * height) * 32;
+    float step_s, step_c;
+    sincosf(two_pi_h, &step_s, &step_c);
+    float wr = 1.0f;
+    float wi = 0.0f;
+#pragma unroll
+    for (int m1 = 0; m1 < 16; ++m1) {
+        const int top = plane + (m1 * 16 + m2) * 2;
+        const float xr = in_freq[top];
+        const float xi = in_freq[top + 1];
+        acc_r += xr * wr - xi * wi;
+        acc_i += xr * wi + xi * wr;
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    const int kh0 = height - 16;
+    sincosf(two_pi_h * static_cast<float>(kh0), &wi, &wr);
+#pragma unroll
+    for (int m1 = 0; m1 < 16; ++m1) {
+        const int bot = plane + ((kh0 + m1) * 16 + m2) * 2;
+        const float br = in_freq[bot];
+        const float bi = in_freq[bot + 1];
+        acc_r += br * wr - bi * wi;
+        acc_i += br * wi + bi * wr;
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    const float inv_h = 1.0f / static_cast<float>(height);
+    const int out = plane + (h * 16 + m2) * 2;
+    row_freq[out] = acc_r * inv_h;
+    row_freq[out + 1] = acc_i * inv_h;
+}
+
+__global__ void pruned_ifft_h_m16_x2_kernel(int batch_size, int channels, int height,
+                                            const float *__restrict__ in_freq,
+                                            float *__restrict__ row_freq) {
+    const int pairs = height >> 1;
+    const int total = batch_size * channels * pairs * 16;
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= total) {
+        return;
+    }
+    const int m2 = index & 15;
+    int rem = index >> 4;
+    const int pair = rem % pairs;
+    rem /= pairs;
+    const int ch = rem % channels;
+    const int b = rem / channels;
+    const int plane = ((b * channels + ch) * height) * 32;
+    const int kh0 = height - 16;
+    float tr[16], ti[16], br[16], bi[16];
+#pragma unroll
+    for (int m1 = 0; m1 < 16; ++m1) {
+        const int top = plane + (m1 * 16 + m2) * 2;
+        tr[m1] = in_freq[top];
+        ti[m1] = in_freq[top + 1];
+        const int bot = plane + ((kh0 + m1) * 16 + m2) * 2;
+        br[m1] = in_freq[bot];
+        bi[m1] = in_freq[bot + 1];
+    }
+    const float inv_h = 1.0f / static_cast<float>(height);
+#pragma unroll
+    for (int dw = 0; dw < 2; ++dw) {
+        const int h = (pair << 1) + dw;
+        const float two_pi_h = (2.0f * M_PIf) * static_cast<float>(h) / static_cast<float>(height);
+        float step_s, step_c;
+        sincosf(two_pi_h, &step_s, &step_c);
+        float acc_r = 0.0f;
+        float acc_i = 0.0f;
+        float wr = 1.0f;
+        float wi = 0.0f;
+#pragma unroll
+        for (int m1 = 0; m1 < 16; ++m1) {
+            acc_r += tr[m1] * wr - ti[m1] * wi;
+            acc_i += tr[m1] * wi + ti[m1] * wr;
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        sincosf(two_pi_h * static_cast<float>(kh0), &wi, &wr);
+#pragma unroll
+        for (int m1 = 0; m1 < 16; ++m1) {
+            acc_r += br[m1] * wr - bi[m1] * wi;
+            acc_i += br[m1] * wi + bi[m1] * wr;
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        const int out = plane + (h * 16 + m2) * 2;
+        row_freq[out] = acc_r * inv_h;
+        row_freq[out + 1] = acc_i * inv_h;
+    }
+}
+
+extern "C" suError_t launch_pruned_ifft_h(const float *in_freq, float *row_freq,
+                                          int batch_size, int channels, int height,
+                                          int modes1, int modes2, suStream_t stream) {
+    const int total = batch_size * channels * height * modes2;
+    dim3 block(SPECTRAL_MUL_BLOCK);
+    dim3 grid((static_cast<unsigned>(total) + block.x - 1) / block.x);
+    if (modes1 == 16 && modes2 == 16 && height == 64) {
+        return launch_pruned_ifft_h_fact16x4_h64(
+            in_freq, row_freq, batch_size, channels, stream);
+    } else if (modes1 == 16 && modes2 == 16 && height == 128) {
+        return launch_pruned_ifft_h_fact16x8_h128(
+            in_freq, row_freq, batch_size, channels, stream);
+    } else if (modes1 == 16 && modes2 == 16 && height == 256) {
+        return launch_pruned_ifft_h_fact32x8_h256(
+            in_freq, row_freq, batch_size, channels, stream);
+    } else if (modes1 == 16 && modes2 == 16 && (height & 1) == 0) {
+        return launch_pruned_ifft_h_x2_named(
+            in_freq, row_freq, batch_size, channels, height, stream);
+    } else if (modes1 == 16 && modes2 == 16) {
+        pruned_ifft_h_m16_kernel<<<grid, block, 0, stream>>>(
+            batch_size, channels, height, in_freq, row_freq);
+    } else {
+        pruned_ifft_h_kernel<<<grid, block, 0, stream>>>(
+            batch_size, channels, height, modes1, modes2, in_freq, row_freq);
+    }
+    return suGetLastError();
+}
+
+extern "C" suError_t launch_pruned_irfft_w(const float *row_freq, float *spatial,
+                                           int batch_size, int channels, int height,
+                                           int width, int modes2, suStream_t stream) {
+    const int total = batch_size * channels * height * width;
+    dim3 block(SPECTRAL_MUL_BLOCK);
+    dim3 grid((static_cast<unsigned>(total) + block.x - 1) / block.x);
+    if (modes2 == 16 && width == 64) {
+        return launch_pruned_irfft_w_fact16x4_w64(
+            row_freq, spatial, batch_size, channels, height, stream);
+    } else if (modes2 == 16 && width == 128) {
+        return launch_pruned_irfft_w_fact16x8_vec4_w128(
+            row_freq, spatial, batch_size, channels, height, stream);
+    } else if (modes2 == 16 && width == 256) {
+        return launch_pruned_irfft_w_fact16x16_vec4_w256(
+            row_freq, spatial, batch_size, channels, height, stream);
+    } else if (modes2 == 16) {
+        pruned_irfft_w_m16_kernel<<<grid, block, 0, stream>>>(
+            batch_size, channels, height, width, row_freq, spatial);
+    } else {
+        pruned_irfft_w_kernel<<<grid, block, 0, stream>>>(
+            batch_size, channels, height, width, modes2, row_freq, spatial);
+    }
+    return suGetLastError();
+}
+
+extern "C" suError_t launch_pruned_rfft_w(const float *x, float *row_freq,
+                                          int batch_size, int channels, int height,
+                                          int width, int modes2, suStream_t stream) {
+    const int total = batch_size * channels * height * modes2;
+    dim3 block(SPECTRAL_MUL_BLOCK);
+    dim3 grid((static_cast<unsigned>(total) + block.x - 1) / block.x);
+    pruned_rfft_w_kernel<<<grid, block, 0, stream>>>(
+        batch_size, channels, height, width, modes2, x, row_freq);
+    return suGetLastError();
+}
+
+extern "C" suError_t launch_pruned_fft_h_corners(const float *row_freq, float *packed,
+                                                 int batch_size, int channels, int height,
+                                                 int modes1, int modes2, suStream_t stream) {
+    const int total = batch_size * channels * modes1 * modes2 * 2;
+    dim3 block(SPECTRAL_MUL_BLOCK);
+    dim3 grid((static_cast<unsigned>(total) + block.x - 1) / block.x);
+    pruned_fft_h_corners_kernel<<<grid, block, 0, stream>>>(
+        batch_size, channels, height, modes1, modes2, row_freq, packed);
+    return suGetLastError();
+}

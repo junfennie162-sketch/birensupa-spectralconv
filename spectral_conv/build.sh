@@ -24,10 +24,76 @@ ${SUPA_BASE}/brcc/bin/brcc -fPIC -O2 \
   -I${SUPA_BASE}/supa/include \
   spectral_conv_ext.su -c -o spectral_conv_ext_su.o
 
+${SUPA_BASE}/brcc/bin/brcc -fPIC -O2 \
+  --supa-gpu-arch=br100 \
+  --supa-path=${SUPA_BASE}/supa \
+  -I${SUPA_BASE}/supa/include \
+  pruned_fft.su -c -o pruned_fft_su.o
+
+${SUPA_BASE}/brcc/bin/brcc -fPIC -O2 \
+  --supa-gpu-arch=br100 \
+  --supa-path=${SUPA_BASE}/supa \
+  -I${SUPA_BASE}/supa/include \
+  pruned_geo.su -c -o pruned_geo_su.o
+
+${SUPA_BASE}/brcc/bin/brcc -fPIC -O2 \
+  --supa-gpu-arch=br100 \
+  --supa-path=${SUPA_BASE}/supa \
+  -I${SUPA_BASE}/supa/include \
+  pruned_irfft_w64.su -c -o pruned_irfft_w64_su.o
+
+${SUPA_BASE}/brcc/bin/brcc -fPIC -O2 \
+  --supa-gpu-arch=br100 \
+  --supa-path=${SUPA_BASE}/supa \
+  -I${SUPA_BASE}/supa/include \
+  pruned_ifft_h_fact.su -c -o pruned_ifft_h_fact_su.o
+
+${SUPA_BASE}/brcc/bin/brcc -fPIC -O2 \
+  --supa-gpu-arch=br100 \
+  --supa-path=${SUPA_BASE}/supa \
+  -I${SUPA_BASE}/supa/include \
+  pruned_rfft_w_fact.su -c -o pruned_rfft_w_fact_su.o
+
+${SUPA_BASE}/brcc/bin/brcc -fPIC -O2 \
+  --supa-gpu-arch=br100 \
+  --supa-path=${SUPA_BASE}/supa \
+  -I${SUPA_BASE}/supa/include \
+  pruned_fft_h_fact.su -c -o pruned_fft_h_fact_su.o
+
+${SUPA_BASE}/brcc/bin/brcc -fPIC -O2 \
+  --supa-gpu-arch=br100 \
+  --supa-path=${SUPA_BASE}/supa \
+  -I${SUPA_BASE}/supa/include \
+  pruned_fft_h_fact256.su -c -o pruned_fft_h_fact256_su.o
+
+${SUPA_BASE}/brcc/bin/brcc -fPIC -O2 \
+  --supa-gpu-arch=br100 \
+  --supa-path=${SUPA_BASE}/supa \
+  -I${SUPA_BASE}/supa/include \
+  pruned_ifft_h_fact256.su -c -o pruned_ifft_h_fact256_su.o
+
+${SUPA_BASE}/brcc/bin/brcc -fPIC -O2 \
+  --supa-gpu-arch=br100 \
+  --supa-path=${SUPA_BASE}/supa \
+  -I${SUPA_BASE}/supa/include \
+  pruned_fwd_fact64.su -c -o pruned_fwd_fact64_su.o
+
+${SUPA_BASE}/brcc/bin/brcc -fPIC -O2 \
+  --supa-gpu-arch=br100 \
+  --supa-path=${SUPA_BASE}/supa \
+  -I${SUPA_BASE}/supa/include \
+  pruned_irfft_w256_pair.su -c -o pruned_irfft_w256_pair_su.o
+
+${SUPA_BASE}/brcc/bin/brcc -fPIC -O2 \
+  --supa-gpu-arch=br100 \
+  --supa-path=${SUPA_BASE}/supa \
+  -I${SUPA_BASE}/supa/include \
+  pruned_irfft_w128_vec4.su -c -o pruned_irfft_w128_vec4_su.o
+
 ${SUPA_BASE}/brcc/bin/brcc --supa-link -shared -fPIC \
   --supa-gpu-arch=br100 \
   --supa-path=${SUPA_BASE}/supa \
-  spectral_conv_ext_cpp.o spectral_conv_ext_su.o \
+  spectral_conv_ext_cpp.o spectral_conv_ext_su.o pruned_fft_su.o pruned_geo_su.o pruned_irfft_w64_su.o pruned_ifft_h_fact_su.o pruned_rfft_w_fact_su.o pruned_fft_h_fact_su.o pruned_fft_h_fact256_su.o pruned_ifft_h_fact256_su.o pruned_fwd_fact64_su.o pruned_irfft_w256_pair_su.o pruned_irfft_w128_vec4_su.o \
   ${TORCH_LIBDIRS} \
   -L/usr/local/lib/python3.10/dist-packages/torch_br/lib \
   -L${SUPA_BASE}/supa/lib \

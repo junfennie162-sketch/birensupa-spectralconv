@@ -1,0 +1,40 @@
+{
+  "task": "pruned_dft_sample_s3_s4",
+  "shape": "B4_Cin32_Cout64_64x64_modes16",
+  "warmup": 5,
+  "iters": 20,
+  "writes_formal_perf": false,
+  "accuracy": {
+    "pruned_scatter": 6.044615436916004e-06,
+    "fused": 2.5509535155911303e-07,
+    "hybrid_trunc_scatter": 2.5191458355528763e-07,
+    "hybrid_trunc_gemm_inv": 6.039331713952895e-06
+  },
+  "accuracy_ok": true,
+  "timing_ms": [
+    {
+      "path": "fused_current",
+      "ms": 3.7972438614815474,
+      "vs_fused": 0.0,
+      "faster": false
+    },
+    {
+      "path": "pruned_cpu_scatter",
+      "ms": 49.541062861680984,
+      "vs_fused": -12.046584488348307,
+      "faster": false
+    },
+    {
+      "path": "hybrid_trunc_scatter_cpu_inv",
+      "ms": 24.965707678347826,
+      "vs_fused": -5.574691694572154,
+      "faster": false
+    },
+    {
+      "path": "hybrid_trunc_gemm_inv",
+      "ms": 29.805650748312473,
+      "vs_fused": -6.84928538581754,
+      "faster": false
+    }
+  ]
+}

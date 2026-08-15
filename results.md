@@ -1,66 +1,71 @@
-# 测试结果
+# Results
 
-本文只写两件事：**对比**（同一套官方设定上，参考/起点 vs 我们优化后的结果），以及**我们改了代码和算子的哪些地方**。没有换评测数据。中间版本过程不在这里展开。
+This file does two things: **compare** (same official protocol, reference / start vs our implementation) and **name the code changes**. We did not swap eval data.
 
-原始终端输出（未改原文）在 [`results/run_logs/`](results/run_logs/)；交卷包里另有 Cursor 对话原文 `agent_logs/` / `交互日志/`。
+Raw terminal output lives under [`results/run_logs/`](results/run_logs/). Agent chat originals are in `agent_logs/`.
 
-## 1. 性能对比和正确性对比
+## 1. Comparisons
 
-### 1.1 必选算子：官网参考 vs 我们优化后的实现
+### 1.1 Mandatory operator: official reference vs our implementation
 
-频谱卷积按官网算子题评测，不读 Navier-Stokes 数据。正确性对官网同款 PyTorch 参考；性能对本机跑出来的官网 CPU 参考脚本。比的是算子实现优化了多少。
+Spectral convolution is scored as the operator problem. It does not read Navier–Stokes data. Correctness is vs the official-style PyTorch dual-corner reference. Performance on the **formal** row is vs the official CPU reference script run on this machine.
 
-| 项目 | 官网 / 参考 | 我们优化后（SUPA + Extension） | 说明 |
-|------|-------------|-------------------------------|------|
-| 正确性（最差相对误差） | 门槛 ≤ `1e-4` | **2.170×10⁻⁷**（3/3 PASS） | 对 `reference_pytorch.py` / 官网双角 |
-| 64×64 前向 | 74.142 ms（CPU 参考） | **3.797 ms** | 约 19.5× |
-| 128×128 前向 | 89.000 ms（CPU 参考） | **8.037 ms** | 约 11.1× |
-| 256×256 前向 | 295.983 ms（CPU 参考） | **29.295 ms** | 约 10.1× |
+| Item | Official / reference | Ours (SUPA + extension) | Note |
+|------|----------------------|-------------------------|------|
+| Correctness (worst rel) | gate ≤ `1e-4` | **2.170×10⁻⁷** (3/3 PASS) | `reference_pytorch.py` |
+| 64×64 forward | 74.142 ms (CPU ref) | **3.797 ms** | ~19.5× · **formal idle** |
+| 128×128 forward | 89.000 ms (CPU ref) | **8.037 ms** | ~11.1× · **formal idle** |
+| 256×256 forward | 295.983 ms (CPU ref) | **29.295 ms** | ~10.1× · **formal idle** |
 
-对应原始 log：`results/run_logs/official_recheck_2026-08-14.log`、`spectral_accuracy_2026-08-14.md`、`spectral_perf_2026-08-14.md`、`official_baseline_2026-07-21.md`。
+Formal idle measured 2026-08-14 (`warmup=10`, `iters=100`, path `auto` on the suFFT fused board). Logs: `results/run_logs/official_recheck_2026-08-14.log`, `spectral_accuracy_2026-08-14.md`, `spectral_perf_2026-08-14.md`.
 
-### 1.2 进阶模型：官方数据集上，优化前 vs 我们现在
+Default **hot path** in this tree is pruned DFT. Sample **unofficial** CPU-in timings, same official protocol, **not promoted**:
 
-数据始终是官方公开 NS64：`navier_stokes_v1e-3_N1200_T20.pt`。没有改这份数据。比的是同一份官方数据、同一套划分上，代码和训练优化把相对 L2 压到多少。
+| Resolution | Unofficial pruned (CPU-in) | Formal idle (frozen) |
+|------------|----------------------------|----------------------|
+| 64×64 | ~0.96 ms | 3.797 ms |
+| 128×128 | ~2.21 ms | 8.037 ms |
+| 256×256 | ~7.87 ms | 29.295 ms |
 
-| 项目 | 官方设定 | 我们在官方数据上的结果 |
-|------|----------|------------------------|
-| 数据 | `navier_stokes_v1e-3_N1200_T20.pt`（公开 NS64） | **同一文件，未改数据** |
-| 划分 | 训练 1000 / 测试 128，种子 `20260722` | 同协议 |
-| 任务 | 前 10 帧 → 第 11 帧，64×64，≥4 层 FNO | 4 层，width=32，modes=16 |
-| 相对 L2（正式成绩） | 越低越好 | **0.035012** |
-| 同一官方数据上的优化 | 刚接上官方集时 **0.041835** | **0.035012**（相对下降约 16.3%） |
-| 权重 | — | `fno_ns/checkpoints/fno_ns_public_demo.pt` |
-| 原始 log | — | `official_recheck_2026-08-14.log` 的 FNO REEVAL 段；`fno_public_spec_ref_r2_20260811_095727.log` |
+Reproduce unofficial numbers with `bash scripts/validate.sh`. Do not run `test_perf.py` unless you intend to rewrite the formal row on an idle card.
 
-正式成绩就是上表的 **0.035012**。复现：先编译必选算子，再在 `fno_ns/` 跑 `python3 render_official_demo.py`（需自备上述官方 `.pt`）。
+### 1.2 Advanced model: same official dataset, before vs after
 
-## 2. 咱们的改进
+Data is always the official public NS64 file `navier_stokes_v1e-3_N1200_T20.pt`. We did not edit that file. The comparison is code and training on a locked split.
 
-### 2.1 必选算子：从「搬谱回 CPU」改成设备上的 fused 路径
+| Item | Official setting | Our result on that file |
+|------|------------------|-------------------------|
+| Data | `navier_stokes_v1e-3_N1200_T20.pt` | **same file, unmodified** |
+| Split | train 1000 / test 128, seed `20260722` | same |
+| Task | 10 frames → frame 11, 64×64, ≥4 FNO layers | 4 layers, width=32, modes=16 |
+| Relative L2 (formal) | lower is better | **0.035012** |
+| Same-data optimization | 0.041835 when first attached | **0.035012** (~16.3% relative drop) |
+| Weights | — | `fno_ns/checkpoints/fno_ns_public_demo.pt` |
 
-早期实现是：空间域在卡上，FFT 回 Host，整谱在 CPU 做复数乘，再搬回去。小分辨率上，**来回拷显存**比乘法本身还贵。
+Reproduce: build the operator, then `python3 render_official_demo.py` in `fno_ns/` (bring your own official `.pt`).
 
-现在正式热路径：
+## 2. What we changed
 
-1. **suFFT 在设备上做 R2C**，频谱留在卡上。
-2. **自研 SUPA kernel** 做官网同款双角复数乘（只乘保留的低频 modes，不是整谱）。
-3. **设备上 C2R** 变回空间域。源码：`spectral_conv/spectral_conv_ext.su`、`spectral_conv_ext.cpp`、`spectral_conv_ops.py`。
+### 2.1 Operator: from Host round-trips to on-device paths
 
-配套工程改动：
+Early code did spatial work on device, FFT on Host, full-spectrum multiply on CPU, then copy back. At small sizes the **copies** cost more than the multiply.
 
-- **权重与谱缓存**：同一组 modes / 权重不每步重新 H2D。
-- **输出 buffer 复用**：fused 路径的频谱缓冲和 Host staging 反复用，少 malloc。
-- **按分辨率选路径**：很小的图走「CPU FFT + 设备乘」（C2R 墙更明显）；大图走 fused。评测三档 64/128/256 都走正式脚本 `test_perf.py`。
+Frozen **formal** hot path:
 
-正确性始终对官网同款 PyTorch 参考（双角截断）。最差相对误差 **2.170×10⁻⁷**，门槛 1×10⁻⁴。另外补了反向、三维四角、不规则尺寸，不改变必选题口径。
+1. **suFFT R2C on device**, spectrum stays on the card.
+2. **Custom SUPA kernel** for the official dual-corner complex multiply (kept modes only).
+3. **C2R on device**. Sources: `spectral_conv/spectral_conv_ext.su`, `spectral_conv_ext.cpp`, `spectral_conv_ops.py`.
 
-性能对比对象是本机跑出来的**官网 CPU 参考脚本**（不是自己写的慢实现）：74.142 / 89.000 / 295.983 ms → **3.797 / 8.037 / 29.295 ms**。
+**Default** hot path in this release: pruned mixed-radix DFT / iDFT on kept bins (`pruned_*.su`), same dual-corner multiply. `SPECTRAL_PRUNED_FFT=0 SPECTRAL_PRUNED_INV=0` restores suFFT.
 
-### 2.2 进阶 FNO：复用该算子，并在官方数据上压 L2
+Engineering around both paths: weight and spectrum caches; output-buffer reuse; Parameter identity in cache keys; CPU-in `_SPATIAL_OUT_CACHE` for `to_cpu=True`. FNO must not reuse that spatial buffer (`to_cpu=False` allocates a fresh packed irfft). Skip-roundtrip FNO, pinned H2D, and dual-n1 irfft were No-Go and reverted.
 
-- 网络是 **4 层** Fourier Layer（width=32，modes=16，64×64），推理调用上面同一套频谱卷积，不是另写一套 PyTorch FFT。
-- 输出用 **残差头**：网络预测相对上一帧的增量，再加回最后一帧输入。公开 NS 帧间变化大，这样比直接回归整场稳。
-- **没有改官方 `.pt` 文件**。划分固定 1000/128、种子 `20260722`。刚接到这份数据时相对 L2 是 **0.041835**；后来在同一文件上做了：周期平移增广、频域加权损失、训练后期主要更新 spectral 权重，并用 H⁻¹ 型损失压高频误差。正式成绩 **0.035012**。
+Correctness stays on the official-style PyTorch reference. Worst rel **2.170×10⁻⁷**. Bonus: backward, 3D four-corner, irregular shapes.
 
-权重：`fno_ns/checkpoints/fno_ns_public_demo.pt`。流场图由 `fno_ns/render_official_demo.py` 在这份官方测试集上前向后，交给 `visualize.py` 画出。
+### 2.2 FNO: reuse the operator, squeeze L2 on official data
+
+- **Four** Fourier layers (width=32, modes=16, 64×64). Inference calls the same SpectralConv.
+- **Residual head**: predict the increment vs the last input frame.
+- **Official `.pt` untouched.** Split 1000/128, seed `20260722`. Periodic shifts, spectral-weighted loss, late spectral-weight updates, H⁻¹ high-frequency loss. Formal **0.035012**.
+
+Figures come from `fno_ns/render_official_demo.py` on that official test set, then `visualize.py`.

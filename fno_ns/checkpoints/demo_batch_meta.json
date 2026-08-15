@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "data": "public_ns64",
+  "data_source": "file:navier_stokes_v1e-3_N1200_T20.pt",
+  "checkpoint": "checkpoints/fno_ns_public_demo.pt",
+  "residual": true,
+  "seed": 20260722,
+  "n_train": 1000,
+  "n_test": 128,
+  "sample_index": 44,
+  "target_time_step": 10,
+  "sample_relative_l2": 0.035010162740945816,
+  "test_mean_relative_l2": 0.03501190704992041,
+  "official_relative_l2": 0.035012,
+  "n_forwarded": 128,
+  "generated_at": "2026-08-14T13:09:27Z",
+  "note": "figures from official NS64 + public_demo.pt; contest L2 is official_relative_l2"
+}

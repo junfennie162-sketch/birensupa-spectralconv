@@ -1,9 +1,14 @@
+> **Language.** README, `skill.md`, `results.md`, and `AGENT_OFFICIAL.md` are English. This Agent log is the original Chinese used during development (contest scoring item). Start with [`AGENT_OFFICIAL.md`](AGENT_OFFICIAL.md) and [`skill.md`](skill.md).
+>
+> Formal board: public NS64 L2 **0.035012**; Spectral idle **3.797 / 8.037 / 29.295 ms**. Default hot path is pruned DFT (unofficial; not promoted).
+
 # 开发记录（Agent 辅助）
 
 > **官方必须项**（赛道评分「Agent 开发」约 15%）：未提交视为不合格。  
-> 要求：≥ **5 段**有效交互；覆盖 ≥ **3 类**场景（kernel / 超参 / 数据 / 瓶颈 / 可视化 / BIREN 平台）。  
-> **评委请先打开 [`AGENT_OFFICIAL.md`](AGENT_OFFICIAL.md)**（抽查页 6 段，6 类场景全覆盖）。  
-> 下文为完整 **43** 段轨迹。工具：Cursor Agent（SSH · 壁仞竞赛 Docker · SDK `1.11.0.0.rc2`）。  
+> 要求：≥ **5** 段有效交互；覆盖 ≥ **3** 类场景。  
+> **评委请先打开 [`AGENT_OFFICIAL.md`](AGENT_OFFICIAL.md)**。  
+> 交卷压缩包里另有：**原始对话** `交互日志/*.jsonl`（未改）和 **原始运行 log** `测试结果/运行日志/`（未改）。文字摘要不是证据，请打开那些文件。  
+> 工具：Cursor Agent（SSH · 壁仞竞赛 Docker · SDK `1.11.0.0.rc2`）。  
 > **写法**：每段固定字段——工具 · 场景标签 · 目标 · 交互摘要 · Agent 建议 · 采纳 · 验证 · 未采纳及原因。
 
 ## 场景对照索引（评委抽查入口 · 2026-08-04）
@@ -23,7 +28,7 @@
 | Spectral idle | **3.797 / 8.037 / 29.295 ms**（2026-08-14 复测） |
 | 行动方针 | [`CURRENT.md`](results/run_logs/CURRENT.md) · Case [`CASE_项目全过程_V0到V10.md`](CASE_项目全过程_V0到V10.md) |
 | **评委 Agent 抽查（必须项）** | [`AGENT_OFFICIAL.md`](AGENT_OFFICIAL.md)（本页 6 段 × ≥3 类场景） |
-| 全文日志 | [`development_log.md`](development_log.md)（43 段） |
+| 全文日志 | [`development_log.md`](development_log.md)（75 段） |
 | 官方对照 | [`SUBMISSION_CHECKLIST.md`](SUBMISSION_CHECKLIST.md) · [`OFFICIAL_ASSET_ALIGNMENT_2026-08-14.md`](results/run_logs/OFFICIAL_ASSET_ALIGNMENT_2026-08-14.md) |
 | OPT Loop | [`LOOP_PROCESS.md`](skills/operator_opt_loop/LOOP_PROCESS.md) · `run_loop.py --dry-run --strict` |
 | 文件规范 | [`FILE_CONVENTIONS.md`](FILE_CONVENTIONS.md) · [`CURRENT.md`](results/run_logs/CURRENT.md) |
@@ -755,4 +760,370 @@
 - 采纳的修改：删 `__pycache__` / 空 logs / ppt-master 缓存 / 根目录重复 Case 与旧评测报告；`run_logs` 根剩约 16 个入口；换戳 `评测报告_最新指标_2026-08-14_095200.md`；刷 LAYOUT / CURRENT / JUDGE / PPT / skill / fno_ns README
 - 验证结果：`run_loop.py --dry-run --strict` PASS（EXPECTED_MS 对齐 08-14 板）；评测报告全局唯一；ai4s 已 sync 现行文档
 - 未采纳内容及原因：未删 `ns_like_v2` 与公开 `.pt`（复现需要）；未删 `train_public_*.py` 探针脚本（答辩轨迹）；未改 `ai4s-n`
+
+## Agent 交互记录 44 · 聊天截图入交互日志（2026-08-14）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：Agent 材料 · 结果分析与可视化
+- 目标：把 Cursor 聊天截图放进交互日志，并按 01/02 同样写法标时间
+- 关键提示词或交互摘要：用户交出 9 张与 Agent 的聊天截图，要求放进交互日志，并「跟之前那个 MD 文档一样」生成时间
+- Agent 建议：原图不改；对话发生日对齐截图内容与开发日志；截图无系统时钟则钟点标「约」；采集时间统一写 Friday, Aug 14, 2026, 10:41 PM (UTC+8)；JSONL 转 MD 那张用当日 10:17 PM
+- 采纳的修改：`agent_logs/截图_01`…`截图_09`.png；`03_2026-08-14_聊天截图时间线.md`（及英文对照）；刷新 `agent_logs/README.md`
+- 验证结果：9 张 PNG 与时间线 MD 在 `submission/agent_logs/`；中文提交包 `交互日志/` 含 `03_*.md` 与截图
+- 未采纳内容及原因：未给无时钟的 7 月对话编造精确到分钟的 JSONL 戳；未替换已有 `.jsonl` / 01 / 02
+
+## Agent 交互记录 45 · 三份 Skill 中文整合（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：Agent 材料 · 结果分析与可视化
+- 目标：把压缩包里的算子开发 / FNO 实验 / 优化闭环三份 Skill 整合成可读中文
+- 关键提示词或交互摘要：用户要求写技术背景、优化思路、技术与问题、类 README（给谁看 / 目的 / 价值 / 收藏）；总结构为整体介绍 → 项目思路 → 个人收获
+- Agent 建议：总说明放 `skills/README.md`；三份 `SKILL.md` 各自写满四块；根 `skill.md` 仍作官方步骤入口；`LOOP_PROCESS.md` 不改成散文
+- 采纳的修改：重写 `skills/README.md`、`spectral_conv_dev/SKILL.md`、`fno_experiment/SKILL.md`、`operator_opt_loop/SKILL.md`；根 `skill.md` 索引改指中文全文
+- 验证结果：三份 Skill 均含背景 / 优化表 / 踩坑表 / 给谁看；总页含收获与 GitHub Star 请求
+- 未采纳内容及原因：未删 `spectral_chain_optimization.md` 等旁注（历史笔记仍可点）；未默认重打提交包 / 未推 GitHub（可另开）
+
+## Agent 交互记录 46 · 完整 Skill 单文档并推 GitHub（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：Agent 材料
+- 目标：把此前三份 Skill 收成**一篇**完整 `skill.md`，按「收藏 → 干什么/价值/给谁 → 项目思路 → 个人收获 → 算子/FNO/闭环」写完并推 GitHub 供下载
+- 关键提示词或交互摘要：用户明确这是两个任务；文档不是压缩包、不要让人按顺序打开多份；同赛道对比不写进 Skill
+- Agent 建议：根目录 `skill.md` 即全文；`skills/README.md` 只指向该文；对比放在对话里
+- 采纳的修改：重写 `submission/skill.md`；精简 `skills/README.md`
+- 验证结果：一篇可从头读到尾；不含同赛道对照表
+- 未采纳内容及原因：未把对比写进 `skill.md`；未重打 39MB 交卷 tar
+
+## Agent 交互记录 47 · 同赛道优化对比写成独立文档（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：结果分析与可视化
+- 目标：把已读到的同赛道公开仓库对比落成旁注文档，供队内看差距，不污染 Skill / 主报
+- 关键提示词或交互摘要：用户要求把发现的对比写成一份文档
+- Agent 建议：独立 `run_logs` 旁注；口径表先于数字表；thomas 的 0.176 与公开 NS64 0.035012 不可比；最大缺口写清是裁剪 DFT 算法而非 suFFT 实现
+- 采纳的修改：新增 `results/run_logs/同赛道优化对比_2026-08-15.md`；`CURRENT.md` 加指针
+- 验证结果：文内不含评测报告 v 号；`skill.md` 未改
+- 未采纳内容及原因：未把对照表写进 `skill.md` / 评测报告；未默认复跑对方仓库或正式 `test_perf.py`
+
+## Agent 交互记录 48 · 裁剪 DFT 计划 + 小样本探针（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化
+- 目标：按同赛道「只算保留频点」先规划再跑样本，看能否接到现有 fused 上
+- 关键提示词或交互摘要：先规划，再拿样本优化；不要一上来改正式热路径
+- Agent 建议：S0–S2 先过官网双角数学；S3–S4 只跑官方 64；einsum/GEMM 只作第一枪；慢则 No-Go，不写 formal ms
+- 采纳的修改：`pruned_dft.py` + `probe_pruned_dft_accuracy.py` + `probe_pruned_dft_sample.py`；计划与结果旁注
+- 验证结果：小样本与官方 64 正确性均 PASS（最差约 6e-6）；64 档 fused 3.797 ms，pruned/混合 25–50 ms
+- 未采纳内容及原因：未改默认 fused；未跑 128/256；未重跑 `test_perf.py`
+
+## Agent 交互记录 49 · 修复整谱 fused 路径（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化
+- 目标：接结合实验里 `fused_trunc_off` FAIL，查清后修，并确认默认 auto 仍更快
+- 关键提示词或交互摘要：用户同意从昨晚未做完的 trunc_off 核对接着优化
+- Agent 建议：先新进程复现；若整谱 `rfft2_sufft` 坏了，整谱也走已过线的 packed trunc；默认仍只 C2C `modes2` 列
+- 采纳的修改：`spectral_conv_ops.py` 的 `SPECTRAL_TRUNC_COL=0` 改为 `rfft2_sufft_trunc(..., Wf)` / `irfft2_sufft_trunc(..., Wf)`；全谱时强制 zero extra columns
+- 验证结果：trunc=0 与 auto 在 64/128/256 均 PASS（rel≈2.6e-7）；非正式 64 ms auto 3.766 vs off 4.808
+- 未采纳内容及原因：不 promote 正式 idle ms；不把默认改成整谱（更慢）
+
+## Agent 交互记录 50 · SUPA 裁剪正/逆探针（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化
+- 目标：重编译并实测「高度两角 + 无 pad C2R」的 SUPA kernel
+- 关键提示词或交互摘要：用户说「重新」
+- Agent 建议：默认仍关；过 1e-4 且更快再问是否接 auto；不写 formal ms
+- 采纳的修改：编进 `spectral_conv_ext.so`；探针 `probe_pruned_supa.py`
+- 验证结果：pruned_fft_inv 64 **2.476 ms**（fused 3.824）；256 **25.05 ms**（fused 29.24）；rel 8e-6 / 1.7e-5 / 3.4e-5 均 PASS
+- 未采纳内容及原因：未改默认 fused；未跑 `test_perf.py` / 未 promote
+
+## Agent 交互记录 51 · 裁剪核默认接通与 twiddle 递推（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化
+- 目标：接着对方「只算保留频点」把 SUPA 裁剪核再压一档，并决定是否作为 fused 默认
+- 关键提示词或交互摘要：用户说继续优化、参考对方优点
+- Agent 建议：共享内存直积与一行一块 radix-2 先探针；慢则回全局索引；用 twiddle 递推减 `sincos`；过 1e-4 再默认开；不写 formal ms
+- 采纳的修改：`pruned_fft.su` 全局索引 DFT + 每 32 步刷新的 twiddle 递推；`spectral_conv_ops.py` 默认 `SPECTRAL_PRUNED_FFT/INV` 开
+- 验证结果：`probe_pruned_supa.py` all_ok；pruned_fft_inv 非正式 64 **2.381 ms** / 256 **20.28 ms**（fused_sufft 3.852 / 30.15）；rel 7.1e-6 / 1.5e-5 / 3.1e-5 PASS
+- 未采纳内容及原因：共享内存 DFT（64≈4.54 ms）与 radix-2（64≈6.88 ms）均 No-Go；未跑 `test_perf.py` / 未 promote 正式 idle
+
+## Agent 交互记录 52 · 追 qw 0.71 ms 与 modes=16 展开（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化
+- 目标：看裁剪路径能否接近对方公开的 0.714 / 1.851 / 6.400 ms
+- 关键提示词或交互摘要：用户要求再继续优化，看看能不能优化到他的程度
+- Agent 建议：先学对方「高度逆+宽度逆合成、中间不回全局」；一行一块占用不够则回全局索引；官方 modes=16 展开 irfft；不写 formal ms
+- 采纳的修改：回滚融合逆；`pruned_irfft_w_m16` 展开；rfft/fft_h 按 32 点分块刷新 twiddle；前向 packed 不再每轮 `zero_`
+- 验证结果：pruned_fft_inv 非正式 **1.865 / 5.071 / 18.16 ms**（64/128/256），rel 仍 PASS；64 device 出 1.669 ms。相对 fused 约快 52%；相对 qw 仍约慢 2.6×
+- 未采纳内容及原因：融合逆 64≈5.61 ms No-Go；未照抄对方 kernel / 512 线程几何；未跑 `test_perf.py` / 未 promote
+
+## Agent 交互记录 53 · 批量 radix-2 再追更高（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化
+- 目标：用户说「或者更高」，试把 1.86 ms 再压向对方 0.71 ms 或更快
+- 关键提示词或交互摘要：在已有 1.865 ms 上继续，能到他的程度或更高
+- Agent 建议：换占用更好的批量 radix-2（多行一块、256/512 线程），过线才留；慢则立刻退回 DFT
+- 采纳的修改：试了 512 线程（launch FAIL status 9）和 256 线程批量 FFT；随后删掉并恢复全局索引 DFT
+- 验证结果：批量 FFT 正确性更好（rel~4e-7）但 64≈**7.88 ms**；恢复后 pruned_fft_inv **1.857 / 5.012 / 18.04 ms**
+- 未采纳内容及原因：批量 radix-2 本机更慢，不进热路径；未 promote 正式 idle
+
+## Agent 交互记录 54 · pruned 官网协议续测（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化
+- 目标：按官网正确性三案 + warmup=10/iters=100 再测默认 pruned，不写正式 idle
+- 关键提示词或交互摘要：用户说「给我继续测试」
+- Agent 建议：不要跑 `test_perf.py` / `test_accuracy.py`（会写 summary）；另写续测脚本
+- 采纳的修改：`probe_pruned_continue.py`；结果写入 `pruned_continue_test_2026-08-15.md`
+- 验证结果：两路正确性均 PASS。默认 pruned **1.756 / 4.935 / 18.084 ms**；suFFT trunc **3.798 / 8.058 / 29.291 ms**（与冻结正式 idle 一致）。64×64 modes=12 rel 7.16e-6
+- 未采纳内容及原因：未跑 `test_perf.py`；未 promote
+
+## Agent 交互记录 55 · 按对方几何做串行 FFT（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化
+- 目标：对照对方公开调参，按「每线程多行、正向实 FFT、逆向不开 FFT」再压一档
+- 关键提示词或交互摘要：用户说继续优化，想一想他是这么做的
+- Agent 建议：只学几何不抄 kernel。正向每线程 16 行串行 radix-2；逆向保持裁剪 DFT；慢则回滚
+- 采纳的修改：试了 `fft_serial` + 16 行/线程；随后从热路径删除，恢复全局索引 DFT
+- 验证结果：串行 FFT 正确（rel~7e-6）但 64≈**26.7 ms**；回滚后 pruned_fft_inv **1.886 / 5.299 / 17.97 ms**
+- 未采纳内容及原因：`loc[512]` 本地内存把带宽吃光；对方是寄存器特化打包 FFT，不是通用本地数组；未 promote
+
+## Agent 交互记录 56 · 寄存器打包 FFT + 256 融合逆（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化
+- 目标：在咱们 fused/pruned 热路径上复现对方几何（偶奇打包 FFT、逆向非 FFT、按分辨率选融合），并压过上一档 1.756/4.935/18.084
+- 关键提示词或交互摘要：代码量大无所谓，继续优化，最起码复现他的以及更好的优化在咱们项目基础上
+- Agent 建议：对方 16 行/线程在 106B 只有约 512 线程，会把占用打穿；改成 1 行/线程寄存器展开 32 点 FFT，高度仍用裁剪 DFT；256 档才开融合逆；不写正式 idle
+- 采纳的修改：`pruned_geo.su` 特化 modes=16 DFT（64/128/256）+ 寄存器 packed 32 点（环境开关）+ 1 行/线程融合逆（默认仅 ≥256）；`pruned_ifft_h_m16` 展开；`SPECTRAL_PACKED_FFT` 默认关
+- 验证结果：官网协议非正式 **1.675 / 4.509 / 14.694 ms**（上一档 1.756 / 4.935 / 18.084）；三案 PASS。相对 qw 公开 0.714 / 1.851 / 6.400 仍约 2.3×
+- 未采纳内容及原因：每线程 16 行 `loc[]` 串行 FFT 回落到 13–26 ms；warp shuffle 32 点 FFT 64 档 rel≈5 且不快；未跑 `test_perf.py` / 未 promote
+
+## Agent 交互记录 57 · smem 打包 FFT 纠错 + 64 档双像素逆（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化
+- 目标：修 warp shuffle 打包 FFT（rel≈5），并继续压 64 档
+- 关键提示词或交互摘要：继续
+- Agent 建议：CPU 复现蝶形与 numpy 一致，根因是 Biren `__shfl_xor_sync` 而非算法；改 smem DIT；64 档逆变换每线程 2 像素、bin 放寄存器；禁止对 256 点 DFT 全展开
+- 采纳的修改：`pruned_rfft_w_pack32_warp_kernel` 改为 smem 32 点 DIT（正确，默认仍关）；`pruned_irfft_w_m16_w64_x2` 作为 64 档默认逆；回滚 4 宽全展开 DFT / `br[16]` vec4
+- 验证结果：smem packed 64 rel **7.08e-6 PASS** 但略慢于 DFT。官网协议默认 **1.494 / 4.497 / 14.642 ms**（上一档 1.675 / 4.509 / 14.694）。三案 PASS
+- 未采纳内容及原因：packed 不进默认（64 档 1.58 vs DFT 1.55）；全展开 256 DFT 曾把 256 档打到 ~35 ms；未 promote
+
+## Agent 交互记录 58 · 协作读行/列 DFT No-Go（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化 / 瓶颈
+- 目标：压正向 DFT 的 16 倍重复读，以及 128/256 逆变换
+- 关键提示词或交互摘要：继续优化
+- Agent 建议：16 线程共享一行 smem 做 rfft、32 线程共享一列做高度 FFT；64 点 DFT 可全展开，256 点不能；协作若更慢立刻关
+- 采纳的修改：`pruned_rfft_w_*_coop` / `pruned_fft_h_*_coop` 留下但 `SPECTRAL_COOP` 默认关；64 档双像素逆保持；回滚 64 点全展开 DFT
+- 验证结果：协作路径正确但更慢（短探针 64：1.86 vs 标量 1.66）。恢复标量后官网协议 **1.464 / 4.631 / 14.645 ms**
+- 未采纳内容及原因：协作读默认关；128/256 双像素逆未进默认；未 promote
+
+## Agent 交互记录 59 · 高度两角一次扫描 + ifft 双行（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化
+- 目标：上次编译被打断后补完；压 64 档高度变换（不再改行 FFT 读法）
+- 关键提示词或交互摘要：继续
+- Agent 建议：同一列一次扫过、同时累加顶角和底角（少一半读）；ifft 每线程两行共享 32 个 bin；过线且更快才留
+- 采纳的修改：默认 `pruned_fft_h_m16_*_dual`；偶数高度走 `pruned_ifft_h_m16_x2`（256 仍融合逆，不走 ifft_h）
+- 验证结果：官网协议非正式 **1.303 / 4.314 / 14.522 ms**（上一档 1.464 / 4.631 / 14.645）；三案 PASS
+- 未采纳内容及原因：未 promote；未跑 `test_perf.py`
+
+## Agent 交互记录 60 · 128 档双像素 irfft + 行 DFT 向量加载（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化
+- 目标：在 1.303 / 4.314 / 14.522 上继续压裁剪 DFT，尤其是行 FFT 与 128 档逆变换
+- 关键提示词或交互摘要：继续
+- Agent 建议：双 k 行 FFT / Goertzel 若更慢立刻撤；128 档照 64 档做双像素 irfft（硬编码 /128）；float2 成对加载只留给 128/256，避免动 64 档占用
+- 采纳的修改：默认 `launch_pruned_irfft_w_x2_w128`；128/256 行 DFT 走 float2；64 档行 DFT 保持标量 16 线程；Goertzel / 双 k 行 FFT 留在 `pruned_geo.su` 但不进默认
+- 验证结果：官网协议非正式 **1.328 / 3.732 / 14.487 ms**（128 档相对上一档 4.314 约 **13.5%**）。三案 PASS；64×64 modes=12 rel 7.16e-6
+- 未采纳内容及原因：双 k 行 FFT 持平/略慢（1.306）；Goertzel 正确但 **1.414 / 4.513 / 15.218** No-Go；未 promote；未跑 `test_perf.py`
+
+## Agent 交互记录 61 · 64 档双行 rFFT + 频谱乘双 Cout（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化
+- 目标：在 1.328 / 3.732 / 14.487 上继续压 64 档行 DFT，并给频谱乘做共享 x 的双输出通道
+- 关键提示词或交互摘要：继续
+- Agent 建议：每线程两行共用旋转因子（对偶于双角高度 FFT）；128/256 双行若更慢则只留 64；偶数 Cout 时一趟 x 乘两个输出通道；奇数 Cout 回退旧 kernel
+- 采纳的修改：`pruned_rfft_w_m16_w64_row2` 仅 64 档偶数高度默认；`spectral_mul_gather_scatter_dual_co2` 在 Cout 偶数时默认
+- 验证结果：官网协议非正式 **1.272 / 3.675 / 14.389 ms**（上一档 1.328 / 3.732 / 14.487）。三案 PASS
+- 未采纳内容及原因：128/256 双行 rFFT 更慢（3.832 / 14.601）不进默认；未 promote；未跑 `test_perf.py`
+
+## Agent 交互记录 62 · 16×16 频谱乘 tile；融合逆/四像素逆 No-Go（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化 / 瓶颈
+- 目标：用户要求压到基本能对齐对方公开 0.714 / 1.851 / 6.400 ms；不抄 kernel，按 106B 占用改几何
+- 关键提示词或交互摘要：直接优化到基本上能够复现他的性能就可以
+- Agent 建议：先分段计时；对方 16 co×16 kx tile 和融合逆可移植思路，但 16 行/线程 / 512 线程 persistent 在 106B 会打穿占用，必须改成高占用版本；过线才留
+- 采纳的修改：默认 `spectral_mul_tile16`（modes=16 且 Cout 为 16 倍数、Cin≤32）；64 档双像素 irfft 与 256 档 1 行融合逆保持
+- 验证结果：tile16 后官网协议最好一次 **1.196 / 3.572 / 14.314 ms**，复测 **1.276 / 3.590 / 14.354**。设备分段 64：**fwd 0.153 / mul 0.079 / inv 0.543**（逆变换约占设备时间 70%）。三案 PASS；modes=16 三档 rel 均 <3e-5
+- 未采纳内容及原因：高占用 smem 融合逆正确但 128/256 落到 4.68 / 23.5 ms；64 档 4 像素 irfft 落到 1.464；256 关掉融合改 x2 设备 inv 从 6.98 升到 8.03。对方 0.714 仍未追上：差在逆变换几何（他们 106M 上 packed FFT + 融合逆），不是再抠频谱乘。未 promote；未跑 `test_perf.py`
+
+## Agent 交互记录 63 · 逆变换 ILP / 关掉 256 融合逆（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化 / 瓶颈
+- 目标：用户要求按规划连续迭代裁剪逆变换，不要每轮停下来问；非正式 ms 对齐对方公开 0.714 / 1.851 / 6.400
+- 关键提示词或交互摘要：你直接进行你的规划就行，不用每次都停止
+- Agent 建议：106B 要高占用；双累加器 ILP（同线程数、共享 loads）优于 smem/融合一行；256 的 1 线程/行融合逆把占用打穿，应拆成 ifft_h + 多像素 irfft
+- 采纳的修改：64 档保持顺序双像素 `pruned_irfft_w_m16_x2_kernel`（ILP 略慢）；128 档默认 `x2_ilp`；`SPECTRAL_FUSED_INV256` 默认关；256 档 `x4_ilp` + float4 向量写；irfft 频谱 float2 向量读
+- 验证结果：官网协议（warmup=10/iters=100 CPU-in）**1.159 / 3.019 / 11.553 ms**（上一 KEEP 约 1.199 / 3.655 / 14.424）。设备分段 inv **0.483 / 1.252 / 5.674**。三案 PASS；modes=16 三档 rel 7.2e-6 / 1.4e-5 / 3.0e-5。相对对方 0.714 / 1.851 / 6.400 约 **1.62× / 1.63× / 1.80×**。未 promote；未跑 `test_perf.py`
+- 未采纳内容及原因：64 档 irfft ILP 1.242（占用掉了）；128 x4 / 256 x8 寄存器过多，256 落到 14.9；256 融合逆 + 递推 twiddle 仍约 14.3；pageable→pinned 再 H2D 在 128/256 更慢。256 CPU-in 里 H2D≈3.4 ms + D2H≈2.3 ms，PCIe 和 inv 几乎各一半。
+
+## Agent 交互记录 64 · 逆变换分段；LUT / 共享 loads 复用 No-Go（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化 / 瓶颈
+- 目标：继续压裁剪逆变换；先分清 ifft_h 与 irfft_w
+- 关键提示词或交互摘要：继续
+- Agent 建议：给 C++ 加分段入口；用 constant twiddle 表换 sincos；256 档一线程做两组 x4（共享频谱 loads、寄存器仍是 4 路）
+- 采纳的修改：保留 `ifft_h_pruned_packed` / `irfft_w_pruned` 分段接口。热路径仍是 64 顺序 x2 + 128 x2 ILP + 256 x4 ILP
+- 验证结果：KEEP 官网协议约 **1.184 / 3.061 / 11.649 ms**。分段 inv：ifft_h **0.155 / 0.283 / 0.537**，irfft_w **0.316 / 1.263 / 5.051**（256 上 irfft_w 约占逆变换 90%）。三案 PASS
+- 未采纳内容及原因：`__constant__` sincos LUT 全档变慢（256 到 12.13，且拖累同编译单元其它 kernel）；256 x4×2 组共享 loads 把 irfft_w 从 5.05 升到 6.50（占用不够）。未 promote；未跑 `test_perf.py`
+
+## Agent 交互记录 65 · 256 irfft smem / stride-LUT / block128 No-Go（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化 / 瓶颈
+- 目标：压 256 档 irfft_w（分段约 5.05 ms，占逆变换 ~90%）
+- 关键提示词或交互摘要：继续
+- Agent 建议：64 线程同行重复读 16 个 bin，可 smem 广播；sincos 可用 block 内 twiddle 表 + grid-stride 复用；也可改 block=128 换占用
+- 采纳的修改：无。热路径仍回 256 `x4_ilp` + launch 256 线程
+- 验证结果：KEEP 仍约 **1.18 / 3.03 / 11.62 ms**。三案 PASS
+- 未采纳内容及原因：同行 smem 广播 irfft_w 5.47；stride+smem LUT 5.32 / 墙 12.01；block=128 时 irfft_w 5.55。256 上 MAC 循环才是墙，不是重复 load / sincos 次数。未 promote；未跑 `test_perf.py`
+
+## Agent 交互记录 66 · 混合基 irfft（16×N 分解）（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化 / 瓶颈
+- 目标：256 irfft_w 的 16 项 DFT×像素已碰到墙；换算法而不是再调占用
+- 关键提示词或交互摘要：继续（不要每轮停下来问）
+- Agent 建议：把 N 点 irfft 写成 `n = n1 + N1·n2`，对折 16 个 bin 后做 N2 点 +i DFT。16 线程/行、每线程写 N2 个点；256 用 16×16，128 用 16×8，64 用 16×4。64 档必须单独编译单元，否则会把 256 的 16×16 算坏
+- 采纳的修改：`gen_pruned_geo.py` 生成 `dftN_plus` + `fact` kernel；256/128 在 `pruned_geo.su`；64 在 `pruned_irfft_w64.su`；dispatch：64 `fact16x4`、128 `fact16x8`、256 `fact16x16`
+- 验证结果：官网协议 **1.091 / 2.488 / 8.400 ms**（上一 KEEP 约 1.22 / 3.04 / 11.62）。irfft_w 分段 **0.227 / 0.336 / 0.963**（原 0.316 / 1.26 / 5.05）。三案 PASS；modes=16 rel **7.2e-6 / 1.45e-5 / 2.91e-5**
+- 未采纳内容及原因：32×8 流水线里和 x4 ILP 持平（隔离测假赢）；64 的 8×8 比 16×4 慢（irfft 0.336 vs 0.227）；同 TU 里再塞 dft4/8×16 会把 256 搞到 rel≈1、27 ms。未 promote；未跑 `test_perf.py`
+
+## Agent 交互记录 67 · 混合基 ifft_h（64/128 KEEP，256 No-Go）（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化 / 瓶颈
+- 目标：irfft 混合基落地后压 ifft_h（两角 16 点）
+- 关键提示词或交互摘要：继续
+- Agent 建议：同一套 `n=n1+16·n2` 分解，两角各做一次 N2 点 DFT，底角再乘 `exp(-i 2π 16 n1 / H)`。64/128 单独 TU；256 的 16×16 再单独 TU，避免污染
+- 采纳的修改：`pruned_ifft_h_fact.su` 里 64 `fact16x4`、128 `fact16x8`；256 仍走 `x2_named`
+- 验证结果：官网协议 **1.153 / 2.346 / 8.523 ms**（上一轮 1.091 / 2.488 / 8.400；128 明显下降，64/256 在抖动里）。ifft_h 分段 **0.11 / 0.15 / 0.54**（原约 0.16 / 0.28 / 0.54）。三案 PASS；modes=16 **6.2e-6 / 1.14e-5 / 2.91e-5**
+- 未采纳内容及原因：256 ifft_h `fact16x16` rel≈1、ifft_h 4.72 ms、墙 14.4 ms（dft16×两角寄存器撑爆）。未 promote；未跑 `test_perf.py`
+
+## Agent 交互记录 68 · 混合基前向 rfft_w（smem 规约）（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化 / 瓶颈
+- 目标：前向宽度 DFT 仍是设备侧大头（256 上约 0.8 ms）
+- 关键提示词或交互摘要：继续
+- Agent 建议：16 个 n1 线程各做 N2 点 -i DFT，smem 里按 k 规约成 16 个 bin。和逆变换不同，前向必须跨 n1 求和，所以要 smem。独立编译单元，避免污染逆 kernel
+- 采纳的修改：`pruned_rfft_w_fact.su`；`spectral_conv_ext.cpp` 对 128/256 走 `fact16x8` / `fact16x16`；64 仍 row2
+- 验证结果：官网协议 **1.095 / 2.378 / 8.034 ms**。前向 trunc 设备 **0.156 / 0.309 / 0.619**（256 原先约 0.83）。三案 PASS；modes=16 **6.2e-6 / 1.10e-5 / 2.90e-5**
+- 未采纳内容及原因：未改 64 档 row2（前向只有 ~0.15 ms）。未 promote；未跑 `test_perf.py`
+
+## Agent 交互记录 69 · 混合基 fft_h smem + 256 ifft_h 32×8（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化 / 瓶颈
+- 目标：前向高度两角仍是 H 项 Goertzel；256 ifft_h 的 `16×16`（两路 dft16）曾算崩，改用 `32×8`（两路 dft8）
+- 关键提示词或交互摘要：继续
+- Agent 建议：fft_h 用 16 个 n1 × 16 个 m2，各做 N2 点 -i DFT，smem 规约顶/底角（256 用 8 个 m2/块、16 KB smem）。ifft_h 256 用 n1=32、n2=8，底角相位仍是 `exp(-i 2π 16 n1 / H)`。三个独立 TU，避免再污染 `pruned_geo.su`
+- 采纳的修改：`pruned_fft_h_fact.su`（128）、`pruned_fft_h_fact256.su`（256）、`pruned_ifft_h_fact256.su`（32×8）；`spectral_conv_ext.cpp` / `pruned_fft.su` 分发；64 前向高度仍 dual geo
+- 验证结果：官网协议 **1.077 / 2.274 / 7.862 ms**（上一 KEEP 1.095 / 2.378 / 8.034）。分段 fwd **0.156 / 0.221 / 0.569**，ifft_h **0.11 / 0.15 / 0.29**（256 原 0.54），irfft_w **0.23 / 0.34 / 0.96**。三案 PASS；modes=16 **6.2e-6 / 1.50e-6 / 1.37e-6**
+- 未采纳内容及原因：256 ifft `16×16` 仍 No-Go（不重试）。未 promote；未跑 `test_perf.py`
+
+## Agent 交互记录 70 · 64 前向混合基 KEEP；256 irfft smem 共享 load No-Go（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化 / 瓶颈
+- 目标：64 前向仍是 row2 + dual Goertzel；256 irfft 每行 16 线程重复读同一组 bin
+- 关键提示词或交互摘要：继续
+- Agent 建议：64 的 rfft/fft_h 用 `16×4` 混合基，dft4_minus，单独 TU。256 irfft 用 smem 广播 16 个 bin 后再 dft16，也单独 TU
+- 采纳的修改：`pruned_fwd_fact64.su`；`spectral_conv_ext.cpp` 对 64 走 `fact16x4`。256 irfft 仍回 `fact16x16`（`pruned_geo.su`）
+- 验证结果：官网协议约 **1.068 / 2.343 / 7.913 ms**。64 fwd 设备 **0.126**（原 0.156）。三案 PASS；modes=16 **1.63e-6 / 1.50e-6 / 1.37e-6**
+- 未采纳内容及原因：256 irfft smem 共享 load 正确但更慢（1.081 vs 0.958）。未 promote；未跑 `test_perf.py`
+
+## Agent 交互记录 71 · irfft float4 加载（128/256 KEEP）（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化 / 瓶颈
+- 目标：256 irfft 仍约 0.95 ms，是最大设备 kernel
+- 关键提示词或交互摘要：继续
+- Agent 建议：不要在同一线程里跑两次 dft16。改成 16 线程/行、一次 dftN，把 16 个 bin 改成 8 次 float4 加载。128/256 各一个独立 TU。64 同样试过但没更快
+- 采纳的修改：`pruned_irfft_w256_pair.su`（vec4 `16×16`）、`pruned_irfft_w128_vec4.su`（vec4 `16×8`）；64 仍 `fact16x4`（`pruned_irfft_w64.su`）
+- 验证结果：官网协议 **1.079 / 2.299 / 7.926 ms**（上一 KEEP 1.068 / 2.343 / 7.913；128 下降）。隔离 irfft **0.23 / 0.28 / 0.84**（原 0.23 / 0.34 / 0.96）。三案 PASS；modes=16 **1.63e-6 / 1.50e-6 / 1.37e-6**
+- 未采纳内容及原因：双 n1（两次 dft16）rel≈1、30 ms；64 float4 0.226 vs 0.223 不换。未 promote；未跑 `test_perf.py`
+
+## Agent 交互记录 72 · 256 占用/smem 形状探针 No-Go（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化 / 瓶颈
+- 目标：在 float4 irfft KEEP 之后继续压 256 设备时间（ifft 0.29、fwd 0.52、irfft 0.84）
+- 关键提示词或交互摘要：继续优化
+- Agent 建议：ifft 改 `64×4`（两路 dft4、更多线程）；irfft 改 block=128；fft_h 改 16 个 m2/块（32KB smem）；rfft 改 4 行/块。全部独立 TU 或只改 launch，避免再往 `pruned_geo.su` 塞 kernel
+- 采纳的修改：无。热路径仍是 ifft `32×8`、irfft vec4 block=256、fft_h 8 个 m2、rfft 8 行/块
+- 验证结果：撤回后官网协议 **1.069 / 2.331 / 7.957 ms**（与上一 KEEP 1.079 / 2.299 / 7.926 同抖动带）。三案 PASS
+- 未采纳内容及原因：`64×4` ifft 0.36 vs 0.29；irfft block128 0.90 vs 0.84；fft_h 32KB fwd 0.58 vs 0.52；rfft 4 行 fwd 复测 0.56 vs 0.52。未 promote；未跑 `test_perf.py`
+
+## Agent 交互记录 73 · 算子缓存 KEEP；FNO 跳过回拷 No-Go（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化 / 瓶颈 / BIREN 平台
+- 目标：把裁剪 DFT 再顶一截，同时试 FNO 设备常驻；哪条更能把项目数字压下去就留哪条
+- 关键提示词或交互摘要：两条路都试，怎么走都可以，把数值优化得更好
+- Agent 建议：kernel 占用/smem 已到顶，改砍分配与回拷。FNO 层间若能跳过 suFFT 的 host-origin `copy_`，四层 D2D 会少一截；CPU 入把 H2D 目的缓冲和 irfft 输出缓存起来，避免每轮 `cudaMalloc`
+- 采纳的修改：CPU 入走 `_roundtrip_supa_input` 缓存 H2D；`irfft2_pruned_packed_out` 只在 `to_cpu=True` 写 Python `_SPATIAL_OUT_CACHE`；`SPECTRAL_PRUNED_SKIP_ROUNDTRIP` 默认关
+- 验证结果：三案 + modes=16 + FNO 链 PASS。非正式 CPU 入 **0.961 / 2.207 / 7.870 ms**（上一 KEEP 约 1.069 / 2.331 / 7.957）。FNO B16 约 **5.3M** gps、chain rel **7.5e-5**（summary 旁注仍是 1.60M，未改）
+- 未采纳内容及原因：跳过回拷 FNO rel≈0.5（GELU/add/einsum/Conv/IN 的 device 存储裁剪 kernel 读不对，sync/clone 无效，必须 copy 进 host-seeded 缓冲）；C++ stage 缓冲直接当 FNO 输出会别名。未 promote；未跑 `test_perf.py`
+
+## Agent 交互记录 74 · 裁剪 DFT 可复现入口 + 提交树收口（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：BIREN 平台 / 瓶颈
+- 目标：把裁剪 DFT 收成可复现命令；对照同赛道交卷目录，精简必选/选修源码，不整棵模仿
+- 关键提示词或交互摘要：先把之前的思路优化到能复现；再学对方提交结构；没用的脚本删掉
+- Agent 建议：学的是「一条验证命令 + 源码目录只留能交卷的文件」，不是改目录名叫 `project/`。正式 idle 仍冻结，复现脚本不准跑 `test_perf.py`
+- 采纳的修改：`scripts/reproduce.sh`；`build.sh` 去掉 No-Go TU；必选删探针/bench；选修只留训练/评测/可视化入口（续训依赖的 `train_public_ns64_boost.py` / `train_public_multistep_probe.py` 保留）
+- 验证结果：slim link 后 `probe_pruned_continue.py` 全 PASS。裁剪 DFT **0.989 / 2.331 / 7.877 ms**；suFFT 三案 worst rel **2.17e-7**。未写正式 idle
+- 未采纳内容及原因：未把仓库改成 `project/spectral_conv_gpu` 两套树；未 promote；本机没有用户 Windows 路径下的 zip，按 GitHub 公开树对照（thomas / qw）
+
+## Agent 交互记录 75 · FNO 输出缓存与 256 irfft 形状探针 No-Go（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化 / 瓶颈 / BIREN 平台
+- 目标：继续压裁剪 DFT。设备侧 256 irfft 仍约 0.95 ms；FNO 不能直接复用 irfft 目的缓冲
+- 关键提示词或交互摘要：继续
+- Agent 建议：先试 FNO 层间 ping-pong（两块 dest 轮换，避免和 add/IN 别名）；CPU 入走 pinned 中转砍 pageable H2D；256 irfft 每线程算相邻两个 n1 并 float2 写回，把同一行 bin 的重复加载减半。Biren 上 `shfl` 数值不对，不用 shuffle
+- 采纳的修改：无。热路径仍是 CPU 入 `_SPATIAL_OUT_CACHE` + `irfft2_pruned_packed_out`；FNO `to_cpu=False` 走 `irfft2_pruned_packed` 每次新分配；256 irfft 仍 vec4 `16×16`
+- 验证结果：撤回后三案 + modes=16 PASS。非正式 CPU 入约 **0.97 / 2.19 / 8.05 ms**（与 KEEP 抖动带一致）。Ping-pong 返回 FNO 时 chain rel **1.34 FAIL**；pinned 中转 CPU 入变成 **6.93 / 14.92 / 49.08 ms**；dual-n1 f2 隔离 irfft **3.46 vs 0.95 ms**；ifft float2 store 隔离 **0.31 vs ~0.29 ms**。未 promote；未跑 `test_perf.py`
+- 未采纳内容及原因：复用/返回给 FNO 的 spatial 缓冲会被下层 add/IN 污染（与 C++ stage 别名同类）；Biren `pin_memory` 多一次 CPU 拷贝更慢；双 n1 寄存器压力把 irfft 干到 3×。下一步若还做 kernel，不要再试 dual-n1 / ping-pong 返回 / pinned 中转
+
+## Agent 交互记录 76 · 英文单包整理并推 GitHub（2026-08-15）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：BIREN 平台 / 结果可视化与材料
+- 目标：把现行有优化的提交树（裁剪 DFT 热路径）整理成英文 GitHub 树；只留一份英文交卷包，删掉中文包
+- 关键提示词或交互摘要：先别做 kernel；把最新优化版重新整理打包；可模仿别人目录结构但保留咱们特色；用英语；GitHub 原先中英两包只留英文
+- Agent 建议：不要从脏的 nested git 直接 `git add -A`。fresh clone 后 rsync 现行 `spectral_conv/`（含 `pruned_*.su`）和精简后的 `fno_ns/`。学的是「一条 `scripts/validate.sh` + 顶栏指标表 + 相对路径图」，不是改名叫 `project/`。正式 idle 仍冻结；`validate.sh` 不准跑 `test_perf.py`。`development_log.md` 正文保持中文原件，其余面向 GitHub 的 README / skill / results / AGENT 抽查页用英文
+- 采纳的修改：`scripts/validate.sh`；GitHub 覆盖英文 `README.md` / `skill.md` / `results.md` / `AGENT_OFFICIAL.md`；`contest_submit/FanDouGarden_Track5_English_20260815.tar.gz`；删除中文 tar 与 `目录对照.md`
+- 验证结果：以 push 后的 `junfennie162-sketch/birensupa-spectralconv` 为准（英文单包；源码含裁剪 DFT）
+- 未采纳内容及原因：未把工作区 `ai4s-f/submission/README.md` 改成英文（队内仍中文）；未把 75 段 Agent 日志全文翻译；未 promote 非正式 ms；未开 smem 融合 kernel
+
+
+
 

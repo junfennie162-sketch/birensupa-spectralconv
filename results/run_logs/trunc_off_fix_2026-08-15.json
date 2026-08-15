@@ -1,0 +1,47 @@
+{
+  "task": "trunc_off_fix_verify",
+  "all_ok": true,
+  "accuracy": [
+    {
+      "trunc": "0",
+      "res": 64,
+      "rel": 2.555576743435962e-07,
+      "ok": true
+    },
+    {
+      "trunc": "0",
+      "res": 128,
+      "rel": 2.714884135747967e-07,
+      "ok": true
+    },
+    {
+      "trunc": "0",
+      "res": 256,
+      "rel": 2.830462741414174e-07,
+      "ok": true
+    },
+    {
+      "trunc": "auto",
+      "res": 64,
+      "rel": 2.555576743435962e-07,
+      "ok": true
+    },
+    {
+      "trunc": "auto",
+      "res": 128,
+      "rel": 2.714884135747967e-07,
+      "ok": true
+    },
+    {
+      "trunc": "auto",
+      "res": 256,
+      "rel": 2.830462741414174e-07,
+      "ok": true
+    }
+  ],
+  "timing": {
+    "auto_64_ms": 3.76622062176466,
+    "trunc_off_64_ms": 4.807725641876459,
+    "writes_formal_perf": false
+  }
+}

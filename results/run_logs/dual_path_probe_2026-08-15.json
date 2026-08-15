@@ -1,0 +1,59 @@
+{
+  "task": "dual_path_probe",
+  "skip_roundtrip_env": "",
+  "all_ok": true,
+  "accuracy": [
+    {
+      "case": "tiny_8x8",
+      "rel": 4.67537856728397e-08,
+      "ok": true
+    },
+    {
+      "case": "small_32x32",
+      "rel": 1.1374232639616424e-07,
+      "ok": true
+    },
+    {
+      "case": "target_64x64",
+      "rel": 7.161657759121021e-06,
+      "ok": true
+    }
+  ],
+  "modes16": [
+    {
+      "res": 64,
+      "rel": 1.6372623020014635e-06,
+      "ok": true
+    },
+    {
+      "res": 128,
+      "rel": 1.4772362210448114e-06,
+      "ok": true
+    },
+    {
+      "res": 256,
+      "rel": 1.364060214287733e-06,
+      "ok": true
+    }
+  ],
+  "device_chain": {
+    "rel": 2.8560913898182373e-06,
+    "ok": true,
+    "y0_device": "supa"
+  },
+  "timing": {
+    "cpuin_64": 0.9606894943863153,
+    "dev_64": 0.5691177863627672,
+    "cpuin_128": 2.2070056945085526,
+    "dev_128": 0.7531415950506926,
+    "cpuin_256": 7.870437828823924,
+    "dev_256": 2.348324889317155
+  },
+  "fno": {
+    "chain_rel_b4": 7.495116442926466e-05,
+    "chain_ok": true,
+    "ms_batch16": 12.44931235909462,
+    "grid_points_per_second": 5264226.497789162
+  },
+  "writes_formal_perf": false
+}

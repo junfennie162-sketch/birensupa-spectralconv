@@ -1,0 +1,21 @@
+{
+  "task": "trunc_off_isolated",
+  "all_ok": false,
+  "rows": [
+    {
+      "res": 64,
+      "rel": 1.0645510185636151,
+      "ok": false
+    },
+    {
+      "res": 128,
+      "rel": 1.0926903486927735,
+      "ok": false
+    },
+    {
+      "res": 256,
+      "rel": 1.228798826533384,
+      "ok": false
+    }
+  ]
+}

@@ -1,0 +1,253 @@
+#include <supa.h>
+#include <supa_device.h>
+#include <math.h>
+
+#ifndef M_PIf
+#define M_PIf 3.14159265358979323846f
+#endif
+
+#define BF(ar, ai, br, bi, cs, sn) \
+    do { \
+        const float _tr = (br) * (cs) - (bi) * (sn); \
+        const float _ti = (br) * (sn) + (bi) * (cs); \
+        const float _ar = (ar); \
+        const float _ai = (ai); \
+        (br) = _ar - _tr; \
+        (bi) = _ai - _ti; \
+        (ar) = _ar + _tr; \
+        (ai) = _ai + _ti; \
+    } while (0)
+
+static __device__ void dft8_plus(float &r0, float &i0, float &r1, float &i1, float &r2, float &i2, float &r3, float &i3, float &r4, float &i4, float &r5, float &i5, float &r6, float &i6, float &r7, float &i7) {
+    { const float tr = r1; r1 = r4; r4 = tr; const float ti = i1; i1 = i4; i4 = ti; }
+    { const float tr = r3; r3 = r6; r6 = tr; const float ti = i3; i3 = i6; i6 = ti; }
+    // stage 1 len=2
+    BF(r0, i0, r1, i1, 1.0f, 0.0f);
+    BF(r2, i2, r3, i3, 1.0f, 0.0f);
+    BF(r4, i4, r5, i5, 1.0f, 0.0f);
+    BF(r6, i6, r7, i7, 1.0f, 0.0f);
+    // stage 2 len=4
+    BF(r0, i0, r2, i2, 1.0f, 0.0f);
+    BF(r1, i1, r3, i3, 0.0f, 1.0f);
+    BF(r4, i4, r6, i6, 1.0f, 0.0f);
+    BF(r5, i5, r7, i7, 0.0f, 1.0f);
+    // stage 3 len=8
+    BF(r0, i0, r4, i4, 1.0f, 0.0f);
+    BF(r1, i1, r5, i5, 0.707106781f, 0.707106781f);
+    BF(r2, i2, r6, i6, 0.0f, 1.0f);
+    BF(r3, i3, r7, i7, -0.707106781f, 0.707106781f);
+}
+
+__global__ void pruned_irfft_w_m16_fact16x8_vec4_w128_kernel(int batch_size, int channels, int height,
+                       const float *__restrict__ row_freq, float *__restrict__ spatial) {
+    const int total = batch_size * channels * height * 16;
+    const int index = static_cast<int>(blockIdx.x * blockDim.x + threadIdx.x);
+    if (index >= total) {
+        return;
+    }
+    const int n1 = index & 15;
+    int rest = index >> 4;
+    const int h = rest % height;
+    rest /= height;
+    const int ch = rest % channels;
+    const int b = rest / channels;
+    const int row_base = ((b * channels + ch) * height + h) * 32;
+    const int out_base = ((b * channels + ch) * height + h) * 128;
+    const float4 *bp = reinterpret_cast<const float4 *>(row_freq + row_base);
+    const float4 p0 = bp[0];
+    const float4 p1 = bp[1];
+    const float4 p2 = bp[2];
+    const float4 p3 = bp[3];
+    const float4 p4 = bp[4];
+    const float4 p5 = bp[5];
+    const float4 p6 = bp[6];
+    const float4 p7 = bp[7];
+    const float r0 = p0.x;
+    const float r1 = p0.z;
+    const float i1 = p0.w;
+    const float r2 = p1.x;
+    const float i2 = p1.y;
+    const float r3 = p1.z;
+    const float i3 = p1.w;
+    const float r4 = p2.x;
+    const float i4 = p2.y;
+    const float r5 = p2.z;
+    const float i5 = p2.w;
+    const float r6 = p3.x;
+    const float i6 = p3.y;
+    const float r7 = p3.z;
+    const float i7 = p3.w;
+    const float r8 = p4.x;
+    const float i8 = p4.y;
+    const float r9 = p4.z;
+    const float i9 = p4.w;
+    const float r10 = p5.x;
+    const float i10 = p5.y;
+    const float r11 = p5.z;
+    const float i11 = p5.w;
+    const float r12 = p6.x;
+    const float i12 = p6.y;
+    const float r13 = p6.z;
+    const float i13 = p6.w;
+    const float r14 = p7.x;
+    const float i14 = p7.y;
+    const float r15 = p7.z;
+    const float i15 = p7.w;
+    float b0r = 0.0f;
+    float b0i = 0.0f;
+    float b1r = 0.0f;
+    float b1i = 0.0f;
+    float b2r = 0.0f;
+    float b2i = 0.0f;
+    float b3r = 0.0f;
+    float b3i = 0.0f;
+    float b4r = 0.0f;
+    float b4i = 0.0f;
+    float b5r = 0.0f;
+    float b5i = 0.0f;
+    float b6r = 0.0f;
+    float b6i = 0.0f;
+    float b7r = 0.0f;
+    float b7i = 0.0f;
+    b0r = r0;
+    float step_s, step_c;
+    sincosf((2.0f * M_PIf) * static_cast<float>(n1) / 128.0f, &step_s, &step_c);
+    float wr = step_c;
+    float wi = step_s;
+    b1r += r1 * wr - i1 * wi;
+    b1i += r1 * wi + i1 * wr;
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    b2r += r2 * wr - i2 * wi;
+    b2i += r2 * wi + i2 * wr;
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    b3r += r3 * wr - i3 * wi;
+    b3i += r3 * wi + i3 * wr;
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    b4r += r4 * wr - i4 * wi;
+    b4i += r4 * wi + i4 * wr;
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    b5r += r5 * wr - i5 * wi;
+    b5i += r5 * wi + i5 * wr;
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    b6r += r6 * wr - i6 * wi;
+    b6i += r6 * wi + i6 * wr;
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    b7r += r7 * wr - i7 * wi;
+    b7i += r7 * wi + i7 * wr;
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    b0r += r8 * wr - i8 * wi;
+    b0i += r8 * wi + i8 * wr;
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    b1r += r9 * wr - i9 * wi;
+    b1i += r9 * wi + i9 * wr;
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    b2r += r10 * wr - i10 * wi;
+    b2i += r10 * wi + i10 * wr;
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    b3r += r11 * wr - i11 * wi;
+    b3i += r11 * wi + i11 * wr;
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    b4r += r12 * wr - i12 * wi;
+    b4i += r12 * wi + i12 * wr;
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    b5r += r13 * wr - i13 * wi;
+    b5i += r13 * wi + i13 * wr;
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    b6r += r14 * wr - i14 * wi;
+    b6i += r14 * wi + i14 * wr;
+    {
+        const float nr = wr * step_c - wi * step_s;
+        const float ni = wr * step_s + wi * step_c;
+        wr = nr;
+        wi = ni;
+    }
+    b7r += r15 * wr - i15 * wi;
+    b7i += r15 * wi + i15 * wr;
+    dft8_plus(b0r, b0i, b1r, b1i, b2r, b2i, b3r, b3i, b4r, b4i, b5r, b5i, b6r, b6i, b7r, b7i);
+    const float invw = 1.0f / 128.0f;
+    spatial[out_base + n1 + 0] = (2.0f * b0r - r0) * invw;
+    spatial[out_base + n1 + 16] = (2.0f * b1r - r0) * invw;
+    spatial[out_base + n1 + 32] = (2.0f * b2r - r0) * invw;
+    spatial[out_base + n1 + 48] = (2.0f * b3r - r0) * invw;
+    spatial[out_base + n1 + 64] = (2.0f * b4r - r0) * invw;
+    spatial[out_base + n1 + 80] = (2.0f * b5r - r0) * invw;
+    spatial[out_base + n1 + 96] = (2.0f * b6r - r0) * invw;
+    spatial[out_base + n1 + 112] = (2.0f * b7r - r0) * invw;
+}
+
+
+extern "C" suError_t launch_pruned_irfft_w_fact16x8_vec4_w128(const float *row_freq, float *spatial,
+                                                              int batch_size, int channels, int height,
+                                                              suStream_t stream) {
+    const unsigned nthreads = static_cast<unsigned>(batch_size * channels * height * 16);
+    dim3 block(256);
+    dim3 grid((nthreads + 255u) / 256u);
+    pruned_irfft_w_m16_fact16x8_vec4_w128_kernel<<<grid, block, 0, stream>>>(
+        batch_size, channels, height, row_freq, spatial);
+    return suGetLastError();
+}
