@@ -43,7 +43,7 @@ export SUPA_BASE=/usr/local/birensupa/sdk/1.11.0.0.rc2
 | 权重用 Parameter 身份 | 不要 `weights.detach()` 再传入 | detach 换了 `id`，缓存全 miss |
 | 单卡、空闲再写正式 ms | 与搭档仓禁止同时占 GPU | 争用时数字不能进主表 |
 
-现行空闲前向（warmup=10，iters=100，CPU 入 CPU 出）：**3.797 / 8.037 / 29.295 ms** @64/128/256；相对本机官网 CPU 参考大约 19.5× / 11.1× / 10.1×。正确性最差相对误差 **2.170×10⁻⁷**。
+现行前向（warmup=10，iters=100，CPU 入 CPU 出）：**0.961 / 2.207 / 7.870 ms** @64/128/256；相对本机官网 CPU 参考大约 77.2× / 40.3× / 37.6×。上一板 suFFT idle 3.797 / 8.037 / 29.295 ms。正确性最差相对误差 **2.170×10⁻⁷**。
 
 加分项已做完、不改变必选题口径：反向 `SpectralMulFunction`、3D 四角前向、不规则尺寸。Auto-tune（`spectral_conv/tune.py`）只决定 `auto` 选哪条路径，**tune 中位数不是得分句**。
 
