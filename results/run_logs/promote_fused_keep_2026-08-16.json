@@ -1,0 +1,113 @@
+{
+  "task": "promote_fused_keep_2026-08-16",
+  "protocol": "test_perf.py equivalent: Parameter weights, warmup_spectral_plans, warmup=10, iters=100, CPU-in",
+  "measured_at": "2026-08-16T01:11:58Z",
+  "modes16_acc": [
+    {
+      "res": 64,
+      "rel": 1.6419033341810039e-06,
+      "ok": true
+    },
+    {
+      "res": 128,
+      "rel": 1.4891355429346363e-06,
+      "ok": true
+    },
+    {
+      "res": 256,
+      "rel": 1.382930652580966e-06,
+      "ok": true
+    }
+  ],
+  "rounds": [
+    [
+      {
+        "resolution": "64x64",
+        "forward_time_ms": 0.781882,
+        "memory_MB": 207.0
+      },
+      {
+        "resolution": "128x128",
+        "forward_time_ms": 1.983836,
+        "memory_MB": 215.0
+      },
+      {
+        "resolution": "256x256",
+        "forward_time_ms": 7.443609,
+        "memory_MB": 223.0
+      }
+    ],
+    [
+      {
+        "resolution": "64x64",
+        "forward_time_ms": 0.754461,
+        "memory_MB": 223.0
+      },
+      {
+        "resolution": "128x128",
+        "forward_time_ms": 1.981091,
+        "memory_MB": 223.0
+      },
+      {
+        "resolution": "256x256",
+        "forward_time_ms": 7.323735,
+        "memory_MB": 223.0
+      }
+    ],
+    [
+      {
+        "resolution": "64x64",
+        "forward_time_ms": 0.761588,
+        "memory_MB": 223.0
+      },
+      {
+        "resolution": "128x128",
+        "forward_time_ms": 1.964364,
+        "memory_MB": 223.0
+      },
+      {
+        "resolution": "256x256",
+        "forward_time_ms": 7.320454,
+        "memory_MB": 223.0
+      }
+    ]
+  ],
+  "promoted_median": [
+    {
+      "resolution": "64x64",
+      "forward_time_ms": 0.762,
+      "memory_MB": 223.0,
+      "raw_ms": [
+        0.7818818092346191,
+        0.7544612884521484,
+        0.7615876197814941
+      ]
+    },
+    {
+      "resolution": "128x128",
+      "forward_time_ms": 1.981,
+      "memory_MB": 223.0,
+      "raw_ms": [
+        1.983835697174072,
+        1.981091499328613,
+        1.9643640518188474
+      ]
+    },
+    {
+      "resolution": "256x256",
+      "forward_time_ms": 7.324,
+      "memory_MB": 223.0,
+      "raw_ms": [
+        7.443609237670898,
+        7.323734760284424,
+        7.320454120635986
+      ]
+    }
+  ],
+  "prev_formal": [
+    0.961,
+    2.207,
+    7.87
+  ],
+  "writes_formal_perf": true
+}

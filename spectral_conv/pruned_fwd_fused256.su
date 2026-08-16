@@ -1,0 +1,486 @@
+#include <supa.h>
+#include <supa_device.h>
+#include <math.h>
+
+#ifndef M_PIf
+#define M_PIf 3.14159265358979323846f
+#endif
+
+#define BF(ar, ai, br, bi, cs, sn) \
+    do { \
+        const float _tr = (br) * (cs) - (bi) * (sn); \
+        const float _ti = (br) * (sn) + (bi) * (cs); \
+        const float _ar = (ar); \
+        const float _ai = (ai); \
+        (br) = _ar - _tr; \
+        (bi) = _ai - _ti; \
+        (ar) = _ar + _tr; \
+        (ai) = _ai + _ti; \
+    } while (0)
+
+static __device__ void dft16_minus(float &r0, float &i0, float &r1, float &i1, float &r2, float &i2, float &r3, float &i3, float &r4, float &i4, float &r5, float &i5, float &r6, float &i6, float &r7, float &i7, float &r8, float &i8, float &r9, float &i9, float &r10, float &i10, float &r11, float &i11, float &r12, float &i12, float &r13, float &i13, float &r14, float &i14, float &r15, float &i15) {
+    { const float tr = r1; r1 = r8; r8 = tr; const float ti = i1; i1 = i8; i8 = ti; }
+    { const float tr = r2; r2 = r4; r4 = tr; const float ti = i2; i2 = i4; i4 = ti; }
+    { const float tr = r3; r3 = r12; r12 = tr; const float ti = i3; i3 = i12; i12 = ti; }
+    { const float tr = r5; r5 = r10; r10 = tr; const float ti = i5; i5 = i10; i10 = ti; }
+    { const float tr = r7; r7 = r14; r14 = tr; const float ti = i7; i7 = i14; i14 = ti; }
+    { const float tr = r11; r11 = r13; r13 = tr; const float ti = i11; i11 = i13; i13 = ti; }
+    // stage 1 len=2
+    BF(r0, i0, r1, i1, 1.0f, 0.0f);
+    BF(r2, i2, r3, i3, 1.0f, 0.0f);
+    BF(r4, i4, r5, i5, 1.0f, 0.0f);
+    BF(r6, i6, r7, i7, 1.0f, 0.0f);
+    BF(r8, i8, r9, i9, 1.0f, 0.0f);
+    BF(r10, i10, r11, i11, 1.0f, 0.0f);
+    BF(r12, i12, r13, i13, 1.0f, 0.0f);
+    BF(r14, i14, r15, i15, 1.0f, 0.0f);
+    // stage 2 len=4
+    BF(r0, i0, r2, i2, 1.0f, 0.0f);
+    BF(r1, i1, r3, i3, 0.0f, -1.0f);
+    BF(r4, i4, r6, i6, 1.0f, 0.0f);
+    BF(r5, i5, r7, i7, 0.0f, -1.0f);
+    BF(r8, i8, r10, i10, 1.0f, 0.0f);
+    BF(r9, i9, r11, i11, 0.0f, -1.0f);
+    BF(r12, i12, r14, i14, 1.0f, 0.0f);
+    BF(r13, i13, r15, i15, 0.0f, -1.0f);
+    // stage 3 len=8
+    BF(r0, i0, r4, i4, 1.0f, 0.0f);
+    BF(r1, i1, r5, i5, 0.707106781f, -0.707106781f);
+    BF(r2, i2, r6, i6, 0.0f, -1.0f);
+    BF(r3, i3, r7, i7, -0.707106781f, -0.707106781f);
+    BF(r8, i8, r12, i12, 1.0f, 0.0f);
+    BF(r9, i9, r13, i13, 0.707106781f, -0.707106781f);
+    BF(r10, i10, r14, i14, 0.0f, -1.0f);
+    BF(r11, i11, r15, i15, -0.707106781f, -0.707106781f);
+    // stage 4 len=16
+    BF(r0, i0, r8, i8, 1.0f, 0.0f);
+    BF(r1, i1, r9, i9, 0.923879533f, -0.382683432f);
+    BF(r2, i2, r10, i10, 0.707106781f, -0.707106781f);
+    BF(r3, i3, r11, i11, 0.382683432f, -0.923879533f);
+    BF(r4, i4, r12, i12, 0.0f, -1.0f);
+    BF(r5, i5, r13, i13, -0.382683432f, -0.923879533f);
+    BF(r6, i6, r14, i14, -0.707106781f, -0.707106781f);
+    BF(r7, i7, r15, i15, -0.923879533f, -0.382683432f);
+}
+
+
+__global__ void pruned_rfft2_fused_mixed256_kernel(int batch_size, int channels,
+                       const float *__restrict__ x, float *__restrict__ packed) {
+    __shared__ float2 Z[8][16][16];
+    __shared__ float2 row8[8][16];
+    const int tid = static_cast<int>(threadIdx.x);
+    const int n1 = tid & 15;
+    const int local_row = tid >> 4;
+    const int plane_idx = static_cast<int>(blockIdx.x);
+    const int ch = plane_idx % channels;
+    const int b = plane_idx / channels;
+    const int plane = b * channels + ch;
+    float u0r = 0.0f, u0i = 0.0f;
+    float u1r = 0.0f, u1i = 0.0f;
+    float u2r = 0.0f, u2i = 0.0f;
+    float u3r = 0.0f, u3i = 0.0f;
+    float u4r = 0.0f, u4i = 0.0f;
+    float u5r = 0.0f, u5i = 0.0f;
+    float u6r = 0.0f, u6i = 0.0f;
+    float u7r = 0.0f, u7i = 0.0f;
+    float u8r = 0.0f, u8i = 0.0f;
+    float u9r = 0.0f, u9i = 0.0f;
+    float u10r = 0.0f, u10i = 0.0f;
+    float u11r = 0.0f, u11i = 0.0f;
+    float u12r = 0.0f, u12i = 0.0f;
+    float u13r = 0.0f, u13i = 0.0f;
+    float u14r = 0.0f, u14i = 0.0f;
+    float u15r = 0.0f, u15i = 0.0f;
+    float v0r = 0.0f, v0i = 0.0f;
+    float v1r = 0.0f, v1i = 0.0f;
+    float v2r = 0.0f, v2i = 0.0f;
+    float v3r = 0.0f, v3i = 0.0f;
+    float v4r = 0.0f, v4i = 0.0f;
+    float v5r = 0.0f, v5i = 0.0f;
+    float v6r = 0.0f, v6i = 0.0f;
+    float v7r = 0.0f, v7i = 0.0f;
+    float v8r = 0.0f, v8i = 0.0f;
+    float v9r = 0.0f, v9i = 0.0f;
+    float v10r = 0.0f, v10i = 0.0f;
+    float v11r = 0.0f, v11i = 0.0f;
+    float v12r = 0.0f, v12i = 0.0f;
+    float v13r = 0.0f, v13i = 0.0f;
+    float v14r = 0.0f, v14i = 0.0f;
+    float v15r = 0.0f, v15i = 0.0f;
+
+#pragma unroll 1
+    for (int tile = 0; tile < 32; ++tile) {
+        if (tid < 128) {
+            const int h = tile * 8 + local_row;
+            const int x_base = (plane * 256 + h) * 256;
+            u0r = x[x_base + n1 + 0];
+            u0i = 0.0f;
+            u1r = x[x_base + n1 + 16];
+            u1i = 0.0f;
+            u2r = x[x_base + n1 + 32];
+            u2i = 0.0f;
+            u3r = x[x_base + n1 + 48];
+            u3i = 0.0f;
+            u4r = x[x_base + n1 + 64];
+            u4i = 0.0f;
+            u5r = x[x_base + n1 + 80];
+            u5i = 0.0f;
+            u6r = x[x_base + n1 + 96];
+            u6i = 0.0f;
+            u7r = x[x_base + n1 + 112];
+            u7i = 0.0f;
+            u8r = x[x_base + n1 + 128];
+            u8i = 0.0f;
+            u9r = x[x_base + n1 + 144];
+            u9i = 0.0f;
+            u10r = x[x_base + n1 + 160];
+            u10i = 0.0f;
+            u11r = x[x_base + n1 + 176];
+            u11i = 0.0f;
+            u12r = x[x_base + n1 + 192];
+            u12i = 0.0f;
+            u13r = x[x_base + n1 + 208];
+            u13i = 0.0f;
+            u14r = x[x_base + n1 + 224];
+            u14i = 0.0f;
+            u15r = x[x_base + n1 + 240];
+            u15i = 0.0f;
+            dft16_minus(u0r, u0i, u1r, u1i, u2r, u2i, u3r, u3i, u4r, u4i, u5r, u5i, u6r, u6i, u7r, u7i, u8r, u8i, u9r, u9i, u10r, u10i, u11r, u11i, u12r, u12i, u13r, u13i, u14r, u14i, u15r, u15i);
+            Z[local_row][n1][0].x = u0r;
+            Z[local_row][n1][0].y = u0i;
+            Z[local_row][n1][1].x = u1r;
+            Z[local_row][n1][1].y = u1i;
+            Z[local_row][n1][2].x = u2r;
+            Z[local_row][n1][2].y = u2i;
+            Z[local_row][n1][3].x = u3r;
+            Z[local_row][n1][3].y = u3i;
+            Z[local_row][n1][4].x = u4r;
+            Z[local_row][n1][4].y = u4i;
+            Z[local_row][n1][5].x = u5r;
+            Z[local_row][n1][5].y = u5i;
+            Z[local_row][n1][6].x = u6r;
+            Z[local_row][n1][6].y = u6i;
+            Z[local_row][n1][7].x = u7r;
+            Z[local_row][n1][7].y = u7i;
+            Z[local_row][n1][8].x = u8r;
+            Z[local_row][n1][8].y = u8i;
+            Z[local_row][n1][9].x = u9r;
+            Z[local_row][n1][9].y = u9i;
+            Z[local_row][n1][10].x = u10r;
+            Z[local_row][n1][10].y = u10i;
+            Z[local_row][n1][11].x = u11r;
+            Z[local_row][n1][11].y = u11i;
+            Z[local_row][n1][12].x = u12r;
+            Z[local_row][n1][12].y = u12i;
+            Z[local_row][n1][13].x = u13r;
+            Z[local_row][n1][13].y = u13i;
+            Z[local_row][n1][14].x = u14r;
+            Z[local_row][n1][14].y = u14i;
+            Z[local_row][n1][15].x = u15r;
+            Z[local_row][n1][15].y = u15i;
+        }
+        __syncthreads();
+        if (tid < 128) {
+            const int m2 = n1;
+            const int bin = m2 & 15;
+            float acc_r = 0.0f;
+            float acc_i = 0.0f;
+            float step_s, step_c;
+            sincosf(-(2.0f * M_PIf) * static_cast<float>(m2) / 256.0f, &step_s, &step_c);
+            float wr = 1.0f;
+            float wi = 0.0f;
+#pragma unroll
+            for (int n1s = 0; n1s < 16; ++n1s) {
+                const float zr = Z[local_row][n1s][bin].x;
+                const float zi = Z[local_row][n1s][bin].y;
+                acc_r += zr * wr - zi * wi;
+                acc_i += zr * wi + zi * wr;
+                const float nr = wr * step_c - wi * step_s;
+                const float ni = wr * step_s + wi * step_c;
+                wr = nr;
+                wi = ni;
+            }
+            row8[local_row][m2].x = acc_r;
+            row8[local_row][m2].y = acc_i;
+        }
+        __syncthreads();
+        {
+            const int n1h = tid >> 4;
+            const int m2 = tid & 15;
+            const int h0 = tile * 8;
+#pragma unroll
+            for (int r = 0; r < 8; ++r) {
+                const int h = h0 + r;
+                if ((h & 15) == n1h) {
+                    const int k = h >> 4;
+            if (k == 0) { v0r = row8[r][m2].x; v0i = row8[r][m2].y; }
+            if (k == 1) { v1r = row8[r][m2].x; v1i = row8[r][m2].y; }
+            if (k == 2) { v2r = row8[r][m2].x; v2i = row8[r][m2].y; }
+            if (k == 3) { v3r = row8[r][m2].x; v3i = row8[r][m2].y; }
+            if (k == 4) { v4r = row8[r][m2].x; v4i = row8[r][m2].y; }
+            if (k == 5) { v5r = row8[r][m2].x; v5i = row8[r][m2].y; }
+            if (k == 6) { v6r = row8[r][m2].x; v6i = row8[r][m2].y; }
+            if (k == 7) { v7r = row8[r][m2].x; v7i = row8[r][m2].y; }
+            if (k == 8) { v8r = row8[r][m2].x; v8i = row8[r][m2].y; }
+            if (k == 9) { v9r = row8[r][m2].x; v9i = row8[r][m2].y; }
+            if (k == 10) { v10r = row8[r][m2].x; v10i = row8[r][m2].y; }
+            if (k == 11) { v11r = row8[r][m2].x; v11i = row8[r][m2].y; }
+            if (k == 12) { v12r = row8[r][m2].x; v12i = row8[r][m2].y; }
+            if (k == 13) { v13r = row8[r][m2].x; v13i = row8[r][m2].y; }
+            if (k == 14) { v14r = row8[r][m2].x; v14i = row8[r][m2].y; }
+            if (k == 15) { v15r = row8[r][m2].x; v15i = row8[r][m2].y; }
+                }
+            }
+        }
+        __syncthreads();
+    }
+
+#if 1
+    {
+        const int n1h = tid >> 4;
+        const int m2 = tid & 15;
+        packed[(plane * 256 + (0 * 16 + n1h)) * 32 + m2 * 2] = v0r;
+        packed[(plane * 256 + (0 * 16 + n1h)) * 32 + m2 * 2 + 1] = v0i;
+        packed[(plane * 256 + (1 * 16 + n1h)) * 32 + m2 * 2] = v1r;
+        packed[(plane * 256 + (1 * 16 + n1h)) * 32 + m2 * 2 + 1] = v1i;
+        packed[(plane * 256 + (2 * 16 + n1h)) * 32 + m2 * 2] = v2r;
+        packed[(plane * 256 + (2 * 16 + n1h)) * 32 + m2 * 2 + 1] = v2i;
+        packed[(plane * 256 + (3 * 16 + n1h)) * 32 + m2 * 2] = v3r;
+        packed[(plane * 256 + (3 * 16 + n1h)) * 32 + m2 * 2 + 1] = v3i;
+        packed[(plane * 256 + (4 * 16 + n1h)) * 32 + m2 * 2] = v4r;
+        packed[(plane * 256 + (4 * 16 + n1h)) * 32 + m2 * 2 + 1] = v4i;
+        packed[(plane * 256 + (5 * 16 + n1h)) * 32 + m2 * 2] = v5r;
+        packed[(plane * 256 + (5 * 16 + n1h)) * 32 + m2 * 2 + 1] = v5i;
+        packed[(plane * 256 + (6 * 16 + n1h)) * 32 + m2 * 2] = v6r;
+        packed[(plane * 256 + (6 * 16 + n1h)) * 32 + m2 * 2 + 1] = v6i;
+        packed[(plane * 256 + (7 * 16 + n1h)) * 32 + m2 * 2] = v7r;
+        packed[(plane * 256 + (7 * 16 + n1h)) * 32 + m2 * 2 + 1] = v7i;
+        packed[(plane * 256 + (8 * 16 + n1h)) * 32 + m2 * 2] = v8r;
+        packed[(plane * 256 + (8 * 16 + n1h)) * 32 + m2 * 2 + 1] = v8i;
+        packed[(plane * 256 + (9 * 16 + n1h)) * 32 + m2 * 2] = v9r;
+        packed[(plane * 256 + (9 * 16 + n1h)) * 32 + m2 * 2 + 1] = v9i;
+        packed[(plane * 256 + (10 * 16 + n1h)) * 32 + m2 * 2] = v10r;
+        packed[(plane * 256 + (10 * 16 + n1h)) * 32 + m2 * 2 + 1] = v10i;
+        packed[(plane * 256 + (11 * 16 + n1h)) * 32 + m2 * 2] = v11r;
+        packed[(plane * 256 + (11 * 16 + n1h)) * 32 + m2 * 2 + 1] = v11i;
+        packed[(plane * 256 + (12 * 16 + n1h)) * 32 + m2 * 2] = v12r;
+        packed[(plane * 256 + (12 * 16 + n1h)) * 32 + m2 * 2 + 1] = v12i;
+        packed[(plane * 256 + (13 * 16 + n1h)) * 32 + m2 * 2] = v13r;
+        packed[(plane * 256 + (13 * 16 + n1h)) * 32 + m2 * 2 + 1] = v13i;
+        packed[(plane * 256 + (14 * 16 + n1h)) * 32 + m2 * 2] = v14r;
+        packed[(plane * 256 + (14 * 16 + n1h)) * 32 + m2 * 2 + 1] = v14i;
+        packed[(plane * 256 + (15 * 16 + n1h)) * 32 + m2 * 2] = v15r;
+        packed[(plane * 256 + (15 * 16 + n1h)) * 32 + m2 * 2 + 1] = v15i;
+        return;
+    }
+#endif
+    u0r = v0r;
+    u0i = v0i;
+    u1r = v1r;
+    u1i = v1i;
+    u2r = v2r;
+    u2i = v2i;
+    u3r = v3r;
+    u3i = v3i;
+    u4r = v4r;
+    u4i = v4i;
+    u5r = v5r;
+    u5i = v5i;
+    u6r = v6r;
+    u6i = v6i;
+    u7r = v7r;
+    u7i = v7i;
+    u8r = v8r;
+    u8i = v8i;
+    u9r = v9r;
+    u9i = v9i;
+    u10r = v10r;
+    u10i = v10i;
+    u11r = v11r;
+    u11i = v11i;
+    u12r = v12r;
+    u12i = v12i;
+    u13r = v13r;
+    u13i = v13i;
+    u14r = v14r;
+    u14i = v14i;
+    u15r = v15r;
+    u15i = v15i;
+    dft16_minus(u0r, u0i, u1r, u1i, u2r, u2i, u3r, u3i, u4r, u4i, u5r, u5i, u6r, u6i, u7r, u7i, u8r, u8i, u9r, u9i, u10r, u10i, u11r, u11i, u12r, u12i, u13r, u13i, u14r, u14i, u15r, u15i);
+    const int n1h = tid >> 4;
+    const int m2 = tid & 15;
+    const int m2_local = m2 & 7;
+    const int m1 = n1h;
+    const int bin = m1 & 15;
+    float step_s, step_c;
+
+    if (m2 < 8) {
+        Z[m2_local][n1h][0].x = u0r;
+        Z[m2_local][n1h][0].y = u0i;
+        Z[m2_local][n1h][1].x = u1r;
+        Z[m2_local][n1h][1].y = u1i;
+        Z[m2_local][n1h][2].x = u2r;
+        Z[m2_local][n1h][2].y = u2i;
+        Z[m2_local][n1h][3].x = u3r;
+        Z[m2_local][n1h][3].y = u3i;
+        Z[m2_local][n1h][4].x = u4r;
+        Z[m2_local][n1h][4].y = u4i;
+        Z[m2_local][n1h][5].x = u5r;
+        Z[m2_local][n1h][5].y = u5i;
+        Z[m2_local][n1h][6].x = u6r;
+        Z[m2_local][n1h][6].y = u6i;
+        Z[m2_local][n1h][7].x = u7r;
+        Z[m2_local][n1h][7].y = u7i;
+        Z[m2_local][n1h][8].x = u8r;
+        Z[m2_local][n1h][8].y = u8i;
+        Z[m2_local][n1h][9].x = u9r;
+        Z[m2_local][n1h][9].y = u9i;
+        Z[m2_local][n1h][10].x = u10r;
+        Z[m2_local][n1h][10].y = u10i;
+        Z[m2_local][n1h][11].x = u11r;
+        Z[m2_local][n1h][11].y = u11i;
+        Z[m2_local][n1h][12].x = u12r;
+        Z[m2_local][n1h][12].y = u12i;
+        Z[m2_local][n1h][13].x = u13r;
+        Z[m2_local][n1h][13].y = u13i;
+        Z[m2_local][n1h][14].x = u14r;
+        Z[m2_local][n1h][14].y = u14i;
+        Z[m2_local][n1h][15].x = u15r;
+        Z[m2_local][n1h][15].y = u15i;
+    }
+    __syncthreads();
+    if (m2 < 8) {
+        sincosf(-(2.0f * M_PIf) * static_cast<float>(m1) / 256.0f, &step_s, &step_c);
+        {
+        float acc_r = 0.0f;
+        float acc_i = 0.0f;
+        float wr = 1.0f;
+        float wi = 0.0f;
+#pragma unroll
+        for (int n1s = 0; n1s < 16; ++n1s) {
+            const float zr = Z[m2_local][n1s][bin].x;
+            const float zi = Z[m2_local][n1s][bin].y;
+            acc_r += zr * wr - zi * wi;
+            acc_i += zr * wi + zi * wr;
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+            const int out_idx = (plane * 256 + m1) * 32 + m2 * 2;
+            packed[out_idx] = acc_r;
+            packed[out_idx + 1] = acc_i;
+        }
+        sincosf(-(2.0f * M_PIf) * static_cast<float>(240 + m1) / 256.0f, &step_s, &step_c);
+        {
+        float acc_r = 0.0f;
+        float acc_i = 0.0f;
+        float wr = 1.0f;
+        float wi = 0.0f;
+#pragma unroll
+        for (int n1s = 0; n1s < 16; ++n1s) {
+            const float zr = Z[m2_local][n1s][bin].x;
+            const float zi = Z[m2_local][n1s][bin].y;
+            acc_r += zr * wr - zi * wi;
+            acc_i += zr * wi + zi * wr;
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+            const int out_idx = (plane * 256 + 240 + m1) * 32 + m2 * 2;
+            packed[out_idx] = acc_r;
+            packed[out_idx + 1] = acc_i;
+        }
+    }
+    __syncthreads();
+    if (m2 >= 8) {
+        Z[m2_local][n1h][0].x = u0r;
+        Z[m2_local][n1h][0].y = u0i;
+        Z[m2_local][n1h][1].x = u1r;
+        Z[m2_local][n1h][1].y = u1i;
+        Z[m2_local][n1h][2].x = u2r;
+        Z[m2_local][n1h][2].y = u2i;
+        Z[m2_local][n1h][3].x = u3r;
+        Z[m2_local][n1h][3].y = u3i;
+        Z[m2_local][n1h][4].x = u4r;
+        Z[m2_local][n1h][4].y = u4i;
+        Z[m2_local][n1h][5].x = u5r;
+        Z[m2_local][n1h][5].y = u5i;
+        Z[m2_local][n1h][6].x = u6r;
+        Z[m2_local][n1h][6].y = u6i;
+        Z[m2_local][n1h][7].x = u7r;
+        Z[m2_local][n1h][7].y = u7i;
+        Z[m2_local][n1h][8].x = u8r;
+        Z[m2_local][n1h][8].y = u8i;
+        Z[m2_local][n1h][9].x = u9r;
+        Z[m2_local][n1h][9].y = u9i;
+        Z[m2_local][n1h][10].x = u10r;
+        Z[m2_local][n1h][10].y = u10i;
+        Z[m2_local][n1h][11].x = u11r;
+        Z[m2_local][n1h][11].y = u11i;
+        Z[m2_local][n1h][12].x = u12r;
+        Z[m2_local][n1h][12].y = u12i;
+        Z[m2_local][n1h][13].x = u13r;
+        Z[m2_local][n1h][13].y = u13i;
+        Z[m2_local][n1h][14].x = u14r;
+        Z[m2_local][n1h][14].y = u14i;
+        Z[m2_local][n1h][15].x = u15r;
+        Z[m2_local][n1h][15].y = u15i;
+    }
+    __syncthreads();
+    if (m2 >= 8) {
+        sincosf(-(2.0f * M_PIf) * static_cast<float>(m1) / 256.0f, &step_s, &step_c);
+        {
+        float acc_r = 0.0f;
+        float acc_i = 0.0f;
+        float wr = 1.0f;
+        float wi = 0.0f;
+#pragma unroll
+        for (int n1s = 0; n1s < 16; ++n1s) {
+            const float zr = Z[m2_local][n1s][bin].x;
+            const float zi = Z[m2_local][n1s][bin].y;
+            acc_r += zr * wr - zi * wi;
+            acc_i += zr * wi + zi * wr;
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+            const int out_idx = (plane * 256 + m1) * 32 + m2 * 2;
+            packed[out_idx] = acc_r;
+            packed[out_idx + 1] = acc_i;
+        }
+        sincosf(-(2.0f * M_PIf) * static_cast<float>(240 + m1) / 256.0f, &step_s, &step_c);
+        {
+        float acc_r = 0.0f;
+        float acc_i = 0.0f;
+        float wr = 1.0f;
+        float wi = 0.0f;
+#pragma unroll
+        for (int n1s = 0; n1s < 16; ++n1s) {
+            const float zr = Z[m2_local][n1s][bin].x;
+            const float zi = Z[m2_local][n1s][bin].y;
+            acc_r += zr * wr - zi * wi;
+            acc_i += zr * wi + zi * wr;
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+            const int out_idx = (plane * 256 + 240 + m1) * 32 + m2 * 2;
+            packed[out_idx] = acc_r;
+            packed[out_idx + 1] = acc_i;
+        }
+    }
+}
+
+extern "C" suError_t launch_pruned_rfft2_fused_mixed256(const float *x, float *packed,
+                                                       int batch_size, int channels,
+                                                       suStream_t stream) {
+    dim3 block(256);
+    dim3 grid(static_cast<unsigned>(batch_size * channels));
+    pruned_rfft2_fused_mixed256_kernel<<<grid, block, 0, stream>>>(
+        batch_size, channels, x, packed);
+    return suGetLastError();
+}

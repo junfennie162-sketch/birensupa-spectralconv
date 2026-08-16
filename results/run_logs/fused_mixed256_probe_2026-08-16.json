@@ -1,0 +1,78 @@
+{
+  "task": "fused_mixed256",
+  "writes_formal_perf": false,
+  "accuracy_official": [
+    {
+      "path": "twokernel",
+      "case": "tiny_8x8",
+      "rel": 4.67537856728397e-08,
+      "ok": true
+    },
+    {
+      "path": "twokernel",
+      "case": "small_32x32",
+      "rel": 1.1374232639616424e-07,
+      "ok": true
+    },
+    {
+      "path": "twokernel",
+      "case": "target_64x64",
+      "rel": 7.161657759121021e-06,
+      "ok": true
+    },
+    {
+      "path": "fused",
+      "case": "tiny_8x8",
+      "rel": 4.67537856728397e-08,
+      "ok": true
+    },
+    {
+      "path": "fused",
+      "case": "small_32x32",
+      "rel": 1.1374232639616424e-07,
+      "ok": true
+    },
+    {
+      "path": "fused",
+      "case": "target_64x64",
+      "rel": 7.161657759121021e-06,
+      "ok": true
+    }
+  ],
+  "modes16_256": {
+    "rel_vs_cpu": 1.3802725545796267e-06,
+    "rel_vs_twokernel": 0.0,
+    "ok_cpu": true,
+    "ok_match": true
+  },
+  "isolated_inv256": {
+    "inv_rel_vs_twokernel": 0.0,
+    "inv_two_ms": 1.3342825137078762,
+    "inv_fused_ms": 1.3617699407041073,
+    "inv_delta_ms": -0.02748742699623108
+  },
+  "segments256": {
+    "rfft2_pruned_trunc_ms": 0.6079416628926992,
+    "mul_ms": 0.07821878418326378,
+    "ifft_h_ms": 0.30374196358025074,
+    "irfft_w_ms": 0.9519174508750439,
+    "inv_two_ms": 1.3342825137078762,
+    "inv_fused_ms": 1.3617699407041073
+  },
+  "e2e": [
+    {
+      "path": "twokernel",
+      "ms64": 0.9695612825453281,
+      "ms128": 2.222232734784484,
+      "ms256": 7.339064255356789
+    },
+    {
+      "path": "fused",
+      "ms64": 1.074603321030736,
+      "ms128": 2.2351120226085186,
+      "ms256": 7.218248173594475
+    }
+  ],
+  "promote_256": false,
+  "all_official_ok": true
+}

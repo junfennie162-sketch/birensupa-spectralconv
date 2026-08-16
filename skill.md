@@ -33,11 +33,11 @@ On one **BIREN** card, implement FNO's core 2D spectral convolution with **SUPA 
 
 Formal board (`results/summary.json`):
 
-| Item | Value |
-|------|--------|
-| SpectralConv 64 / 128 / 256 | **0.961 / 2.207 / 7.870 ms** (pruned DFT, CPU-in KEEP) |
-| Worst relative error | **2.170×10⁻⁷** (gate `1e-4`) |
-| FNO public NS64 relative L2 | **0.035012** (was 0.041835 when we first attached the official set) |
+| 项 | 值 |
+|----|----|
+| SpectralConv 前向 64 / 128 / 256 | **0.764 / 1.827 / 6.504 ms**（`pipe_b_r1` · v12） |
+| 正确性最差相对误差 | 默认裁剪路径 **7.162×10⁻⁶**（门槛 1×10⁻⁴） |
+| FNO 公开 NS64 相对 L2 | **0.035012**（刚接上官方集时是 0.041835） |
 
 This is not a renamed official PyTorch reference, and it is not a pretty L2 on a home-grown vorticity field.
 

@@ -23,7 +23,7 @@ RUN_LOGS = SUB / "results" / "run_logs"
 WORKSPACE = SUB.parent.parent  # /workspace when live tree is ai4s-f/submission
 
 # Formal idle board (2026-08-14 recheck); drift beyond noise is a check failure signal.
-EXPECTED_MS = {"64x64": 3.797, "128x128": 8.037, "256x256": 29.295}
+EXPECTED_MS = {"64x64": 0.764, "128x128": 1.827, "256x256": 6.504}
 MS_NOISE = 0.05
 GATE_DELTA = 1e-4
 PRIMARY_L2_TOL = 1e-6

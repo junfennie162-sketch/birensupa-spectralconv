@@ -1,0 +1,70 @@
+{
+  "task": "fused_fwd64",
+  "writes_formal_perf": false,
+  "accuracy_official": [
+    {
+      "path": "twokernel",
+      "case": "tiny_8x8",
+      "rel": 4.67537856728397e-08,
+      "ok": true
+    },
+    {
+      "path": "twokernel",
+      "case": "small_32x32",
+      "rel": 1.1374232639616424e-07,
+      "ok": true
+    },
+    {
+      "path": "twokernel",
+      "case": "target_64x64",
+      "rel": 7.161657759121021e-06,
+      "ok": true
+    },
+    {
+      "path": "fused",
+      "case": "tiny_8x8",
+      "rel": 4.67537856728397e-08,
+      "ok": true
+    },
+    {
+      "path": "fused",
+      "case": "small_32x32",
+      "rel": 1.1374232639616424e-07,
+      "ok": true
+    },
+    {
+      "path": "fused",
+      "case": "target_64x64",
+      "rel": 7.161657759121021e-06,
+      "ok": true
+    }
+  ],
+  "modes16_64": {
+    "rel_vs_cpu": 1.6298593457336142e-06,
+    "rel_vs_twokernel": 0.0,
+    "ok_cpu": true,
+    "ok_match": true
+  },
+  "isolated_fwd64": {
+    "fwd_rel_vs_twokernel": 0.0,
+    "fwd_two_ms": 0.12827866710722446,
+    "fwd_fused_ms": 0.09395658038556576,
+    "fwd_delta_ms": 0.03432208672165871
+  },
+  "e2e": [
+    {
+      "path": "twokernel",
+      "ms64": 0.7999323587864637,
+      "ms128": 2.2691083792597055,
+      "ms256": 7.682116255164146
+    },
+    {
+      "path": "fused",
+      "ms64": 0.7764491159468889,
+      "ms128": 2.379050115123391,
+      "ms256": 7.597189424559474
+    }
+  ],
+  "promote_fwd64": true,
+  "all_official_ok": true
+}

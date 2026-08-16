@@ -317,3 +317,4 @@ extern "C" suError_t launch_pruned_rfft_w_fact16x16_w256(const float *x, float *
         batch_size, channels, height, x, row_freq);
     return suGetLastError();
 }
+

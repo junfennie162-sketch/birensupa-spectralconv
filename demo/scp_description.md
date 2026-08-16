@@ -2,23 +2,24 @@
 
 **SpectralConv + FNO on BIREN** (Biren Flying Cup · Models & Operators)
 
-SUPA / PyTorch extension implements FNO's core spectral convolution on a Biren GPU, then four FNO layers predict 2D vorticity.
+在壁仞 GPU 上用 SUPA / PyTorch Extension 实现 FNO 核心频谱卷积，并搭 ≥4 层 FNO 做二维涡度预测。
 
-## Results
+## 结果
 
-| Module | Measured on Biren106B |
-|--------|------------------------|
-| Spectral convolution | Worst rel **2.170×10⁻⁷**; 64/128/256 **0.961 / 2.207 / 7.870 ms** |
-| FNO-NS | Official public NS64 (1000/128) relative L2 **0.035012** |
+| 模块 | 实测（Biren106B） |
+|------|-------------------|
+| 必选频谱卷积 | 正确性最差相对误差 **7.162×10⁻⁶**；64/128/256 **0.764 / 1.827 / 6.504 ms** |
+| 进阶 FNO | 官方公开 NS64（1000/128）相对 L2 **0.035012** |
 
-Figures from `fno_ns/render_official_demo.py`. Two covers: typical-sample triple; best / typical / worst. See `demo/media/README.md`.
+图由 `fno_ns/render_official_demo.py` 生成。现行两张：典型样本三连图、最好/典型/最差对照。说明见 `demo/media/README.md`。
 
-## Run
+## 怎么跑
 
 ```bash
 source /usr/local/birensupa/sdk/1.11.0.0.rc2/scripts/brsw_set_env.sh
 export SUPA_BASE=/usr/local/birensupa/sdk/1.11.0.0.rc2
-bash scripts/validate.sh
+cd spectral_conv && ./build.sh
+cd ../fno_ns && python3 render_official_demo.py
 ```
 
-Team: FanDou Garden · North University of China · Track 5
+队伍：翻斗花园 · 中北大学 · 赛道五

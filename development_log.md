@@ -25,14 +25,14 @@
 | 主报口径 | 值 |
 |----------|-----|
 | 公开 NS64 L2 | **0.035012**（`spec_ref_r2` · 版本 **v10**） |
-| Spectral | **0.961 / 2.207 / 7.870 ms**（裁剪 DFT CPU 入 KEEP · 2026-08-15） |
+| Spectral | **0.764 / 1.827 / 6.504 ms**（`pipe_b_r1` · v12 · 2026-08-16） |
 | 行动方针 | [`CURRENT.md`](results/run_logs/CURRENT.md) · Case [`CASE_项目全过程_V0到V10.md`](CASE_项目全过程_V0到V10.md) |
 | **评委 Agent 抽查（必须项）** | [`AGENT_OFFICIAL.md`](AGENT_OFFICIAL.md)（本页 6 段 × ≥3 类场景） |
-| 全文日志 | [`development_log.md`](development_log.md)（75 段） |
+| 全文日志 | [`development_log.md`](development_log.md)（89 段） |
 | 官方对照 | [`SUBMISSION_CHECKLIST.md`](SUBMISSION_CHECKLIST.md) · [`OFFICIAL_ASSET_ALIGNMENT_2026-08-14.md`](results/run_logs/OFFICIAL_ASSET_ALIGNMENT_2026-08-14.md) |
 | OPT Loop | [`LOOP_PROCESS.md`](skills/operator_opt_loop/LOOP_PROCESS.md) · `run_loop.py --dry-run --strict` |
 | 文件规范 | [`FILE_CONVENTIONS.md`](FILE_CONVENTIONS.md) · [`CURRENT.md`](results/run_logs/CURRENT.md) |
-| 评测报告 | `/workspace/评测报告_最新指标_2026-08-14_095200.md`（规范见根 `AGENTS.md`） |
+| 评测报告 | `/workspace/评测报告_最新指标_2026-08-16_092531.md`（规范见根 `AGENTS.md`） |
 
 ## Agent 交互记录 1
 
@@ -1134,6 +1134,138 @@
 - 采纳的修改：`results/summary.json` 的 `spectral_conv.perf.rows`；`README.md` / `results.md` / `skill.md` / `AGENT_OFFICIAL.md` / `CURRENT.md`；GitHub 英文主表同步
 - 验证结果：以 `summary.json` 与 GitHub README 主表为准
 - 未采纳内容及原因：未把 FNO L2 改成别的数（没有更新的公开集成绩）；未把评测报告另开 v 号（用户要求先写进现用主表）
+
+## Agent 交互记录 78 · 256 混合基 smem 融合逆 KEEP（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化 / 瓶颈
+- 目标：趁单卡空闲继续压裁剪 DFT。对照同赛道「按输出行把低频装进 smem、高度逆和宽度逆合成一核」，用咱们自己的混合基 ifft_h `32×8` + vec4 irfft，不抄对方 kernel，也不开已 No-Go 的 Goertzel 融合逆
+- 关键提示词或交互摘要：项目没改完，继续优化；把能优化的都优化；参考同赛道 skill
+- Agent 建议：先分段。256 设备侧 fwd 0.61 / mul 0.08 / ifft 0.30 / irfft 0.95，拷贝仍约 5.4 ms。第一版融合用 128 线程/块，和「irfft block=128」那次 No-Go 一样略慢。改成 **16 行、256 线程、两档 height-n1 共用一块 smem**，irfft 占用和 KEEP 对齐，省掉 8 MB `row_freq` 往返
+- 采纳的修改：新 TU `pruned_inv_fused256.su`；`irfft2_pruned_packed_into` 在 256×256 modes=16 默认走 `SPECTRAL_FUSED_MIXED256`（可用 `=0` 关）。128 同构融合留在 `pruned_inv_fused128.su`，默认关
+- 验证结果：官方三案 PASS；modes=16 @256 vs CPU **1.38e-6**、vs 两 kernel **0**。隔离 inverse 约 **1.283 vs 1.290 ms**。非正式 CPU 入 256 **7.10 vs 7.32 ms**（约 3%）。device-in 替代 host-origin 无收益。未写 `summary.json` / 未跑 `test_perf.py`；主表仍是 **0.961 / 2.207 / 7.870**
+- 未采纳内容及原因：128 线程融合逆隔离 **1.362 vs 1.334** No-Go；`SPECTRAL_PRUNED_DEVICE_IN` 256 档持平不换；128 融合逆隔离快约 3.5%、端到端 **2.200 vs 2.204** 不到 2%，默认关；不重试 dual-n1 / Goertzel / pack32 / FNO skip-roundtrip
+
+## Agent 交互记录 79 · 64 档 smem 融合逆 KEEP（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH）
+- 场景标签：kernel 优化 / 瓶颈
+- 目标：64 档是主表头名，把 256 上已验证的 16 行 / 256 线程融合逆做到 64（ifft `16×4` + irfft `16×4`）
+- 关键提示词或交互摘要：继续优化
+- Agent 建议：64 的 inverse 占端到端比例更大，两 kernel 启动开销相对更贵，融合更可能划算
+- 采纳的修改：新 TU `pruned_inv_fused64.su`；64×64 modes=16 默认 `SPECTRAL_FUSED_MIXED64`（可用 `=0` 关）
+- 验证结果：modes=16 @64 vs CPU **1.65e-6**、vs 两 kernel **0**；官方三案 PASS。隔离 inverse **0.155 vs 0.332 ms**。非正式 CPU 入 64 **0.79 / 0.84 ms**（对照两 kernel **1.08 ms**、主表 0.961）。未写 `summary.json` / 未跑 `test_perf.py`
+- 未采纳内容及原因：未把主表改成 0.79（用户未点头写 formal）；128 融合逆仍默认关
+
+## Agent 交互记录 80 · 64 档 smem 融合前向 KEEP（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH · 壁仞竞赛 Docker）
+- 场景标签：kernel
+- 目标：64 档已 KEEP 融合逆，把同行的两 kernel 前向（rfft `16×4` + fft_h `16×4`）合成一核，省掉 `row_freq` 往返
+- 关键提示词或交互摘要：用户说「继续」；GPU 空闲；不写 formal、不重跑 `test_perf.py`
+- Agent 建议：几何对齐融合逆——16 行 / 256 线程、一块 smem 平面 `row[64][16]`；默认先关，过正确性且端到端稳定快再开
+- 采纳的修改：新 TU `pruned_fwd_fused64.su`；`rfft2_pruned_trunc` 在 64×64 modes=16 走 `SPECTRAL_FUSED_FWD64`（KEEP 默认开，可用 `=0` 关）；`build.sh` 编译链接
+- 验证结果：官方三案 PASS；modes=16 @64 vs CPU **1.63e-6**、vs 两 kernel **0**。隔离 forward **0.094 vs 0.128 ms**。非正式 64 复测 **0.750 vs 0.789 ms**（约 5%）。未写 `summary.json` / 未跑 `test_perf.py`
+- 未采纳内容及原因：未把主表 0.961 改成 0.75；未开 128/256 融合前向（先只做 64）
+
+## Agent 交互记录 81 · 128 档 smem 融合前向 KEEP（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH · 壁仞竞赛 Docker）
+- 场景标签：kernel
+- 目标：64 融合前向 KEEP 后，把 128 的 rfft `16×8` + fft_h `16×8` 合成一核
+- 关键提示词或交互摘要：用户说「继续」；GPU 仍空闲；32 KB smem 有 256 fft_h 的前车，先默认关再过线
+- Agent 建议：几何仍用 16 行 / 256 线程、`row[128][16]`；正确且端到端稳定快再开；256 前向 smem 更大，本轮不做
+- 采纳的修改：新 TU `pruned_fwd_fused128.su`；`rfft2_pruned_trunc` 在 128×128 modes=16 走 `SPECTRAL_FUSED_FWD128`（KEEP 默认开）
+- 验证结果：modes=16 @128 vs CPU **1.47e-6**、vs 两 kernel **0**。隔离 forward **0.162 vs 0.221 ms**。非正式 128 复测约 **2.10–2.14 vs 2.18 ms**。64 默认仍约 **0.755 ms**。未写 `summary.json`
+- 未采纳内容及原因：未改主表 2.207；未做 256 融合前向（`row[256][16]` 单平面已 32 KB）
+
+## Agent 交互记录 82 · C++ 一站式 / 128 逆复测 / 256 前向 smem 上限（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH · 壁仞竞赛 Docker）
+- 场景标签：bottleneck
+- 目标：64/128 融合正逆向已 KEEP 后，找下一刀；避开已 No-Go 的拷贝和 128 线程占用
+- 关键提示词或交互摘要：用户说「继续优化」；主表不改；GPU 空闲
+- Agent 建议：先试把 rFFT+乘+iRFFT 收进一次 C++ 调用（少 Python 往返）；顺带复测 128 融合逆（现在前向已融合）；256 整平面融合前向若超 smem 就停
+- 采纳的修改：`spectral_conv2d_pruned_out` + `SPECTRAL_FUSED_E2E`（默认关）；确认 Biren 单核 smem **上限 32768**
+- 验证结果：一站式 vs 原路径 rel **0**；64 只快 **0.3–0.8%**，128/256 在抖动带。128 融合逆 vs 两 kernel rel **0**，端到端 **0.5–3.1%** 不稳。256 融合前向 `row[256][16]+Z` = 49152，**brcc 直接失败**（32768 max）。未写 `summary.json`
+- 未采纳内容及原因：一站式默认关；128 融合逆仍默认关；256 整平面融合前向列为硬 No-Go，源文件已删，不要再试
+
+## Agent 交互记录 83 · 256 融合逆 4-n1 KEEP（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH · 壁仞竞赛 Docker）
+- 场景标签：kernel
+- 目标：256 整平面前向已撞 32 KB smem 上限，改压融合逆：原核每块只做 2 个 height-n1，ifft 阶段 256 线程里只用 32 个
+- 关键提示词或交互摘要：用户说「继续」；不重试整平面 smem / dual-n1 寄存器双开
+- Agent 建议：每块做 4 个 n1（`sr[32][16]`，4 KB），irfft 分两轮顺序跑，占用仍是 256 线程，避免 dual-n1 那次寄存器爆炸
+- 采纳的修改：新 TU `pruned_inv_fused256_n4.su`；`SPECTRAL_FUSED_MIXED256_N4` KEEP 默认开（`=0` 退回 2-n1）
+- 验证结果：vs CPU **1.38e-6**、vs 2-n1 rel **0**。隔离 inverse **0.877 vs 1.291 ms**。非正式 256 **6.82–6.88 vs 7.10–7.16 ms**。64 仍约 **0.754 ms**。未写 `summary.json`
+- 未采纳内容及原因：未改主表 7.870；未开 512 线程块；未把 4-n1 再扩到 8-n1（要 512 线程或 dual-n1）
+
+## Agent 交互记录 84 · 128 融合逆 4-n1 KEEP；64 n8 默认关（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH · 壁仞竞赛 Docker）
+- 场景标签：kernel
+- 目标：把 256 n4「每块更多 height-n1 + 两轮顺序 irfft」迁到 64/128；避开已 No-Go 的 dual-n1 和 128 旧融合逆抖动
+- 关键提示词或交互摘要：用户说「继续优化」；主表不改；GPU 空闲
+- Agent 建议：128 用 4-n1（旧核是 2-n1 / `tid<32`，和 256 上一刀同源）；64 试 8-n1。生成器漏改 `rest` 除数，必须和 grid 对齐后再测；A/B 一律 clone，避免 `_host_out_buffer` 别名假 0
+- 采纳的修改：`pruned_inv_fused128_n4.su` / `pruned_inv_fused64_n8.su`；`SPECTRAL_FUSED_MIXED128_N4` KEEP 默认开；256 n4 `rest` `/16`→`/8`；64 n8 只留开关
+- 验证结果：官方三案 PASS。modes=16 三档 vs CPU **1.64e-6 / 1.48e-6 / 1.39e-6**，新核 vs KEEP rel **0**。隔离 inverse：128 **0.248 vs 0.403 ms**，64 n8 **0.155 vs 0.156**，256 n4 修复后 **0.817 vs 1.039**。非正式 e2e 128 n4 **1.89–1.93 vs 2.05–2.15**（约 8–11%）；64 n8 在抖动带。未写 `summary.json`
+- 未采纳内容及原因：64 n8 默认关（不到 2%）；未改主表 0.961 / 2.207 / 7.870；未把 128 旧 2-n1 改成默认
+
+## Agent 交互记录 85 · 256 流式融合前向 No-Go；128 n8 默认关（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH · 壁仞竞赛 Docker）
+- 场景标签：bottleneck
+- 目标：256 整平面前向已撞 32 KB，改试「不把 256 行塞进 smem」的流式融合；顺带把 128 融合逆从 4-n1 扩到 8-n1
+- 关键提示词或交互摘要：用户说「继续」；主表不改；GPU 空闲
+- Agent 建议：8 行一波复用 KEEP rFFT，高度样本进寄存器；若一平面只有一个 block，并行会被 32 波串行吃掉。128 8-n1 用四轮顺序 irfft，正确且端到端稳定 ≥2% 再开
+- 采纳的修改：256 流式前向 **不进热路径**（dispatch 已撤）；`pruned_inv_fused128_n8.su` 留下，`SPECTRAL_FUSED_MIXED128_N8` 默认关
+- 验证结果：流式 rFFT 行 vs torch **2.1e-7**。128 n8 vs n4 rel **0**；隔离 **0.258 vs 0.300 ms**；非正式 e2e **0.6–3.0%** 不稳。未写 `summary.json`
+- 未采纳内容及原因：256 单 block 扫全平面列为 No-Go（与整平面 smem 一样不要再试）；128 n8 不到稳定 2%，KEEP 仍是 4-n1；未改主表
+
+## Agent 交互记录 86 · 256 rFFT 16 行独立 TU No-Go（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH · 壁仞竞赛 Docker）
+- 场景标签：kernel
+- 目标：256 前向 rFFT 从 8 行/128 线程扩到 16 行/256 线程，提高占用；主表不改
+- 关键提示词或交互摘要：用户说「继续」；先修同 TU 污染再探针
+- Agent 建议：32 KB `Z[16][16][16]` 必须单独 `.su`。同文件会让 KEEP 8-row packed 相对 torch ~0.99。独立 TU 过正确性后再比隔离时间，稳定快 ≥2% 才开默认
+- 采纳的修改：n16 放到 `pruned_rfft_w_fact256_n16.su`；`SPECTRAL_RFFT256_N16` 默认关；KEEP 仍 8 行
+- 验证结果：独立 TU 后 KEEP packed **1.27e-6**、256 e2e **1.38e-6**。n16 vs KEEP rel **0**。隔离 rFFT **0.746 vs 0.525 ms（−42%）**；e2e **7.61 vs 7.42 ms**。未写 `summary.json`
+- 未采纳内容及原因：16 行正确但 32 KB 更慢，与历史 fft_h 32 KB 同类；同 TU 32 KB sibling 列为正确性 No-Go
+
+## Agent 交互记录 87 · fused KEEP 写入主线 v11（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH · 壁仞竞赛 Docker）
+- 场景标签：bottleneck
+- 目标：把已验证的裁剪 DFT 融合 KEEP 写入正式主表，并合入 `/workspace/ai4s/submission/`
+- 关键提示词或交互摘要：用户说「写入主线」，并问旧脏树是什么
+- Agent 建议：按 `test_perf.py` 协议空闲复测三轮取中位；FNO L2 不动；评测报告编 **v11**；合入用 rsync、不打 2.7G 包；脏树先解释、不 `git reset`
+- 采纳的修改：`summary.json` **0.762 / 1.981 / 7.324 ms**；`EXPECTED_MS` 对齐；评测报告换戳 `2026-08-16_091237`
+- 验证结果：官方三案 PASS（最差 **7.16e-6**）；modes=16 @64/128/256 PASS。相对上一主表 0.961/2.207/7.870 约 **20.7% / 10.2% / 6.9%**
+- 未采纳内容及原因：未把 n16 / 流式 256 前向写进默认；未对 nested git 做 `add -A`；未默认打提交包
+
+## Agent 交互记录 88 · 脏树整理 + 双流拆 batch KEEP（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH · 壁仞竞赛 Docker）
+- 场景标签：bottleneck
+- 目标：先整理两套脏 git，再打 256 拷贝墙（H2D+D2H 约占 77%）
+- 关键提示词或交互摘要：用户说「先整理旧脏树，然后继续优化」
+- Agent 建议：嵌套仓只做 `git reset`（mixed），恢复误删的 `_history/README.md`；不要 `add -A` / `--hard`。拷贝墙用两条 Stream 把 B=4 切成两段，stage 缓冲按 pool 分开
+- 采纳的修改：`SPECTRAL_PIPE_B` 对 128/256 默认开；64 切开更慢，保持关。C++ `set_stage_pool`
+- 验证结果：pipe vs KEEP rel **0**。128 **1.831 vs 2.021（+9.4%）**；256 **6.572 vs 7.530（+12.7%）**；64 **−9%**。未写 `summary.json`
+- 未采纳内容及原因：C++ 一站式三轮约 −0.8%，仍关；64 双流不进默认；未 promote 主表
+
+## Agent 交互记录 89 · pipe KEEP 写入主线 v12 + 两套仓库更新（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH · 壁仞竞赛 Docker）
+- 场景标签：bottleneck
+- 目标：把已验证的 128/256 双流拆 batch 写入正式主表，并更新嵌套竞赛仓与父仓
+- 关键提示词或交互摘要：用户说「现在两套仓库都给我更新一下，然后现在继续优化，根据之前给你的 skill」
+- Agent 建议：按 `test_perf.py` 协议空闲三轮取中位再 promote；评测报告编 **v12**；两套 git 只做选择性 add，rebase 后再 push，禁止 `add -A` / force-push
+- 采纳的修改：`summary.json` **0.764 / 1.827 / 6.504 ms**；`EXPECTED_MS` 对齐；评测报告换戳 `2026-08-16_092531`
+- 验证结果：官方协议中位相对 v11 0.762/1.981/7.324 为 **−0.3% / 7.8% / 11.2%**（64 噪声）；`run_loop.py --dry-run --strict` 过后再提交
+- 未采纳内容及原因：未把 64 双流 / C++ e2e 写进默认；未新打 2.7G 包；未对 nested 做 `add -A`
 
 
 

@@ -1,0 +1,30 @@
+{
+  "task": "rfft256_n16_separate_tu",
+  "writes_formal_perf": false,
+  "acc_ok": true,
+  "keep_restored": true,
+  "default_on": false,
+  "packed_keep_rel": 1.2701e-06,
+  "e2e256_vs_cpu": 1.3793803168099084e-06,
+  "n16_vs_keep_rel": 0.0,
+  "official": {
+    "tiny": 4.6754e-08,
+    "small": 1.1374e-07,
+    "target": 7.1617e-06
+  },
+  "iso_ms": {
+    "keep8": [0.5251667834818363, 0.5262065026909113, 0.5237838719040155],
+    "n16": [0.7586133386939764, 0.7457989361137152, 0.7343018893152475]
+  },
+  "iso_mean": {"keep8": 0.5251, "n16": 0.7462, "gain_pct": -42.13},
+  "e2e_noclone_ms": {"keep8": 7.4247, "n16": 7.6134, "gain_pct": -2.54},
+  "e2e_clone_ms_artifact": {
+    "note": "clone of 4x64x256x256 each iter; not the informal protocol",
+    "keep8_mean": 66.73,
+    "n16_mean": 71.26
+  },
+  "informal_keep_e2e": {"64": 0.767, "128": 2.010, "256": 7.425},
+  "formal_256": 7.870,
+  "same_tu_corruption": "Z[16][16][16] in pruned_rfft_w_fact.su broke KEEP 8-row packed (rel~0.99); separate TU restores KEEP",
+  "decision": "No-Go. SPECTRAL_RFFT256_N16 default false. KEEP remains 8-row/128-thread."
+}

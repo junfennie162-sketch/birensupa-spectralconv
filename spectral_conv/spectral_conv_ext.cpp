@@ -46,8 +46,20 @@ extern "C" suError_t launch_pruned_rfft_w_fact16x8_w128(const float *x, float *r
 extern "C" suError_t launch_pruned_rfft_w_fact16x16_w256(const float *x, float *row_freq,
                                                          int batch_size, int channels, int height,
                                                          suStream_t stream);
+extern "C" suError_t launch_pruned_rfft_w_fact16x16_w256_n16(const float *x, float *row_freq,
+                                                         int batch_size, int channels, int height,
+                                                         suStream_t stream);
 extern "C" suError_t launch_pruned_rfft_w_fact16x4_w64(const float *x, float *row_freq,
                                                        int batch_size, int channels, int height,
+                                                       suStream_t stream);
+extern "C" suError_t launch_pruned_rfft2_fused_mixed64(const float *x, float *packed,
+                                                      int batch_size, int channels,
+                                                      suStream_t stream);
+extern "C" suError_t launch_pruned_rfft2_fused_mixed128(const float *x, float *packed,
+                                                       int batch_size, int channels,
+                                                       suStream_t stream);
+extern "C" suError_t launch_pruned_rfft2_fused_mixed256(const float *x, float *packed,
+                                                       int batch_size, int channels,
                                                        suStream_t stream);
 extern "C" suError_t launch_pruned_fft_h_fact16x4_h64(const float *row_freq, float *packed,
                                                       int batch_size, int channels,
@@ -74,6 +86,27 @@ extern "C" suError_t launch_pruned_irfft2_fused(const float *in_freq, float *spa
                                                 int batch_size, int channels, int height,
                                                 int width, int modes1, int modes2,
                                                 suStream_t stream);
+extern "C" suError_t launch_pruned_irfft2_fused_mixed256(const float *in_freq, float *spatial,
+                                                         int batch_size, int channels,
+                                                         suStream_t stream);
+extern "C" suError_t launch_pruned_irfft2_fused_mixed256_n4(const float *in_freq, float *spatial,
+                                                            int batch_size, int channels,
+                                                            suStream_t stream);
+extern "C" suError_t launch_pruned_irfft2_fused_mixed128(const float *in_freq, float *spatial,
+                                                         int batch_size, int channels,
+                                                         suStream_t stream);
+extern "C" suError_t launch_pruned_irfft2_fused_mixed128_n4(const float *in_freq, float *spatial,
+                                                            int batch_size, int channels,
+                                                            suStream_t stream);
+extern "C" suError_t launch_pruned_irfft2_fused_mixed128_n8(const float *in_freq, float *spatial,
+                                                            int batch_size, int channels,
+                                                            suStream_t stream);
+extern "C" suError_t launch_pruned_irfft2_fused_mixed64(const float *in_freq, float *spatial,
+                                                        int batch_size, int channels,
+                                                        suStream_t stream);
+extern "C" suError_t launch_pruned_irfft2_fused_mixed64_n8(const float *in_freq, float *spatial,
+                                                          int batch_size, int channels,
+                                                          suStream_t stream);
 
 static bool env_flag(const char *key, bool default_on) {
     const char *value = std::getenv(key);
@@ -167,7 +200,17 @@ struct StageKeyHash {
 };
 static std::mutex g_stage_mutex;
 static std::unordered_map<StageKey, torch::Tensor, StageKeyHash> g_stage_cache;
-static constexpr std::size_t kStageCacheCap = 24;
+static constexpr std::size_t kStageCacheCap = 48;
+static int g_stage_pool = 0;
+
+static void set_stage_pool(int64_t pool) {
+    g_stage_pool = static_cast<int>(pool);
+}
+
+static StageKey with_pool(StageKey key) {
+    key.kind += g_stage_pool * 64;
+    return key;
+}
 
 enum StageKind : int {
     kStageRowFreq = 1,
@@ -181,13 +224,15 @@ enum StageKind : int {
     kStageTruncColOut = 9,
     kStageTruncPad = 10,
     kStageTruncOut = 11,
+    kStageMulOut = 12,
 };
 
 static torch::Tensor get_stage_buffer(const StageKey &key,
                                       at::IntArrayRef sizes,
                                       const torch::TensorOptions &opts) {
+    const StageKey pooled = with_pool(key);
     std::lock_guard<std::mutex> lock(g_stage_mutex);
-    auto found = g_stage_cache.find(key);
+    auto found = g_stage_cache.find(pooled);
     if (found != g_stage_cache.end()) {
         return found->second;
     }
@@ -195,7 +240,24 @@ static torch::Tensor get_stage_buffer(const StageKey &key,
         g_stage_cache.erase(g_stage_cache.begin());
     }
     auto buf = torch::empty(sizes, opts);
-    g_stage_cache.emplace(key, buf);
+    g_stage_cache.emplace(pooled, buf);
+    return buf;
+}
+
+static torch::Tensor get_zero_stage_buffer(const StageKey &key,
+                                           at::IntArrayRef sizes,
+                                           const torch::TensorOptions &opts) {
+    const StageKey pooled = with_pool(key);
+    std::lock_guard<std::mutex> lock(g_stage_mutex);
+    auto found = g_stage_cache.find(pooled);
+    if (found != g_stage_cache.end()) {
+        return found->second;
+    }
+    if (g_stage_cache.size() >= kStageCacheCap) {
+        g_stage_cache.erase(g_stage_cache.begin());
+    }
+    auto buf = torch::zeros(sizes, opts);
+    g_stage_cache.emplace(pooled, buf);
     return buf;
 }
 
@@ -694,11 +756,27 @@ torch::Tensor rfft2_pruned_trunc(torch::Tensor x, int64_t modes1_i64, int64_t mo
     TORCH_CHECK(modes1 > 0 && modes1 <= height, "modes1 out of range");
     TORCH_CHECK(modes2 > 0 && modes2 <= width / 2 + 1, "modes2 out of range");
     const auto opts = x_contig.options();
-    auto row = get_stage_buffer(
-        StageKey{batch_size, channels, height, modes2, kStageTruncColOut},
-        {batch_size, channels, height, modes2, 2}, opts);
     auto packed = get_stage_buffer(
         StageKey{batch_size, channels, height, modes2, kStageTruncOut},
+        {batch_size, channels, height, modes2, 2}, opts);
+    if (height == 64 && width == 64 && modes1 == 16 && modes2 == 16 &&
+        env_flag("SPECTRAL_FUSED_FWD64", true)) {
+        check_status(launch_pruned_rfft2_fused_mixed64(
+                         x_contig.data_ptr<float>(), packed.data_ptr<float>(), batch_size,
+                         channels, nullptr),
+                     "launch_pruned_rfft2_fused_mixed64");
+        return packed;
+    }
+    if (height == 128 && width == 128 && modes1 == 16 && modes2 == 16 &&
+        env_flag("SPECTRAL_FUSED_FWD128", true)) {
+        check_status(launch_pruned_rfft2_fused_mixed128(
+                         x_contig.data_ptr<float>(), packed.data_ptr<float>(), batch_size,
+                         channels, nullptr),
+                     "launch_pruned_rfft2_fused_mixed128");
+        return packed;
+    }
+    auto row = get_stage_buffer(
+        StageKey{batch_size, channels, height, modes2, kStageTruncColOut},
         {batch_size, channels, height, modes2, 2}, opts);
     const bool coop = env_flag("SPECTRAL_COOP", false);
     if (env_flag("SPECTRAL_PACKED_FFT", false) && width == 64 && modes2 == 16) {
@@ -712,10 +790,17 @@ torch::Tensor rfft2_pruned_trunc(torch::Tensor x, int64_t modes1_i64, int64_t mo
                                                nullptr),
                      "launch_pruned_rfft_w_coop");
     } else if (modes2 == 16 && width == 256) {
-        check_status(launch_pruned_rfft_w_fact16x16_w256(
-                         x_contig.data_ptr<float>(), row.data_ptr<float>(), batch_size,
-                         channels, height, nullptr),
-                     "launch_pruned_rfft_w_fact16x16_w256");
+        if (env_flag("SPECTRAL_RFFT256_N16", false)) {
+            check_status(launch_pruned_rfft_w_fact16x16_w256_n16(
+                             x_contig.data_ptr<float>(), row.data_ptr<float>(), batch_size,
+                             channels, height, nullptr),
+                         "launch_pruned_rfft_w_fact16x16_w256_n16");
+        } else {
+            check_status(launch_pruned_rfft_w_fact16x16_w256(
+                             x_contig.data_ptr<float>(), row.data_ptr<float>(), batch_size,
+                             channels, height, nullptr),
+                         "launch_pruned_rfft_w_fact16x16_w256");
+        }
     } else if (modes2 == 16 && width == 128) {
         check_status(launch_pruned_rfft_w_fact16x8_w128(
                          x_contig.data_ptr<float>(), row.data_ptr<float>(), batch_size,
@@ -820,6 +905,58 @@ static void irfft2_pruned_packed_into(const torch::Tensor &x_contig, int height,
     const int batch_size = static_cast<int>(x_contig.size(0));
     const int channels = static_cast<int>(x_contig.size(1));
     const auto opts = x_contig.options();
+    if (height == 256 && width == 256 && modes1 == 16 && modes2 == 16 &&
+        env_flag("SPECTRAL_FUSED_MIXED256", true)) {
+        if (env_flag("SPECTRAL_FUSED_MIXED256_N4", true)) {
+            check_status(launch_pruned_irfft2_fused_mixed256_n4(
+                             x_contig.data_ptr<float>(), out.data_ptr<float>(), batch_size,
+                             channels, nullptr),
+                         "launch_pruned_irfft2_fused_mixed256_n4");
+        } else {
+            check_status(launch_pruned_irfft2_fused_mixed256(
+                             x_contig.data_ptr<float>(), out.data_ptr<float>(), batch_size,
+                             channels, nullptr),
+                         "launch_pruned_irfft2_fused_mixed256");
+        }
+        return;
+    }
+    if (height == 128 && width == 128 && modes1 == 16 && modes2 == 16 &&
+        (env_flag("SPECTRAL_FUSED_MIXED128", false) ||
+         env_flag("SPECTRAL_FUSED_MIXED128_N4", true) ||
+         env_flag("SPECTRAL_FUSED_MIXED128_N8", false))) {
+        if (env_flag("SPECTRAL_FUSED_MIXED128_N8", false)) {
+            check_status(launch_pruned_irfft2_fused_mixed128_n8(
+                             x_contig.data_ptr<float>(), out.data_ptr<float>(), batch_size,
+                             channels, nullptr),
+                         "launch_pruned_irfft2_fused_mixed128_n8");
+        } else if (env_flag("SPECTRAL_FUSED_MIXED128_N4", true)) {
+            check_status(launch_pruned_irfft2_fused_mixed128_n4(
+                             x_contig.data_ptr<float>(), out.data_ptr<float>(), batch_size,
+                             channels, nullptr),
+                         "launch_pruned_irfft2_fused_mixed128_n4");
+        } else {
+            check_status(launch_pruned_irfft2_fused_mixed128(
+                             x_contig.data_ptr<float>(), out.data_ptr<float>(), batch_size,
+                             channels, nullptr),
+                         "launch_pruned_irfft2_fused_mixed128");
+        }
+        return;
+    }
+    if (height == 64 && width == 64 && modes1 == 16 && modes2 == 16 &&
+        env_flag("SPECTRAL_FUSED_MIXED64", true)) {
+        if (env_flag("SPECTRAL_FUSED_MIXED64_N8", false)) {
+            check_status(launch_pruned_irfft2_fused_mixed64_n8(
+                             x_contig.data_ptr<float>(), out.data_ptr<float>(), batch_size,
+                             channels, nullptr),
+                         "launch_pruned_irfft2_fused_mixed64_n8");
+        } else {
+            check_status(launch_pruned_irfft2_fused_mixed64(
+                             x_contig.data_ptr<float>(), out.data_ptr<float>(), batch_size,
+                             channels, nullptr),
+                         "launch_pruned_irfft2_fused_mixed64");
+        }
+        return;
+    }
     const bool fused =
         (env_flag("SPECTRAL_FUSED_INV", false) ||
          (width == 64 && env_flag("SPECTRAL_FUSED_OCC64", false)) ||
@@ -871,6 +1008,46 @@ torch::Tensor irfft_w_pruned(torch::Tensor row_freq, int64_t width_i64, int64_t 
                                        batch_size, channels, height, width, modes2, nullptr),
                  "launch_pruned_irfft_w");
     return out;
+}
+
+void spectral_conv2d_pruned_out(torch::Tensor x, torch::Tensor w1, torch::Tensor w2,
+                                int64_t modes1_i64, int64_t modes2_i64, torch::Tensor out) {
+    TORCH_CHECK(x.dim() == 4, "x expects [B,C,H,W]");
+    TORCH_CHECK(x.dtype() == torch::kFloat32, "x expects float32");
+    check_freq_tensor(w1, "w1", 2);
+    check_freq_tensor(w2, "w2", 2);
+    auto x_contig = x.contiguous();
+    auto w1c = w1.contiguous();
+    auto w2c = w2.contiguous();
+    const int batch_size = static_cast<int>(x_contig.size(0));
+    const int channels_in = static_cast<int>(x_contig.size(1));
+    const int height = static_cast<int>(x_contig.size(2));
+    const int width = static_cast<int>(x_contig.size(3));
+    const int modes1 = static_cast<int>(modes1_i64);
+    const int modes2 = static_cast<int>(modes2_i64);
+    const int channels_out = static_cast<int>(w1c.size(1));
+    TORCH_CHECK(w1c.size(0) == channels_in && w2c.size(0) == channels_in, "C_in mismatch");
+    TORCH_CHECK(w2c.size(1) == channels_out, "C_out mismatch");
+    TORCH_CHECK(w1c.size(2) == modes1 && w1c.size(3) == modes2, "w1 modes");
+    TORCH_CHECK(w2c.size(2) == modes1 && w2c.size(3) == modes2, "w2 modes");
+    TORCH_CHECK(out.dim() == 4 && out.dtype() == torch::kFloat32, "out shape/dtype");
+    TORCH_CHECK(out.size(0) == batch_size && out.size(1) == channels_out &&
+                    out.size(2) == height && out.size(3) == width,
+                "out shape mismatch");
+    auto packed = rfft2_pruned_trunc(x_contig, modes1, modes2);
+    auto out_freq = get_zero_stage_buffer(
+        StageKey{batch_size, channels_out, height, modes2, kStageMulOut},
+        {batch_size, channels_out, height, modes2, 2}, packed.options());
+    check_status(launch_spectral_mul_gather_scatter_dual(
+                     packed.data_ptr<float>(), w1c.data_ptr<float>(), w2c.data_ptr<float>(),
+                     out_freq.data_ptr<float>(), batch_size, channels_in, channels_out,
+                     modes1, modes2, height, modes2, nullptr),
+                 "launch_spectral_mul_gather_scatter_dual");
+    auto out_c = out.contiguous();
+    irfft2_pruned_packed_into(out_freq, height, width, modes1, modes2, out_c);
+    if (!out.is_same(out_c)) {
+        out.copy_(out_c);
+    }
 }
 
 PYBIND11_MODULE(spectral_conv_ext, m) {
@@ -927,4 +1104,11 @@ PYBIND11_MODULE(spectral_conv_ext, m) {
     m.def("irfft_w_pruned", &irfft_w_pruned,
           "Pruned inverse W-iRFFT only (profile)",
           pybind11::arg("row_freq"), pybind11::arg("width"), pybind11::arg("modes2"));
+    m.def("spectral_conv2d_pruned_out", &spectral_conv2d_pruned_out,
+          "One pybind: pruned rFFT + dual-corner mul + pruned iRFFT into out",
+          pybind11::arg("x"), pybind11::arg("w1"), pybind11::arg("w2"),
+          pybind11::arg("modes1"), pybind11::arg("modes2"), pybind11::arg("out"));
+    m.def("set_stage_pool", &set_stage_pool,
+          "Select C++ stage-buffer pool (0/1) so two streams do not alias",
+          pybind11::arg("pool"));
 }

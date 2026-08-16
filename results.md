@@ -10,14 +10,14 @@ Raw terminal output lives under [`results/run_logs/`](results/run_logs/). Agent 
 
 Spectral convolution is scored as the operator problem. It does not read Navier–Stokes data. Correctness is vs the official-style PyTorch dual-corner reference. Performance on the **formal** row is vs the official CPU reference script run on this machine.
 
-| Item | Official / reference | Ours (SUPA + extension) | Note |
-|------|----------------------|-------------------------|------|
-| Correctness (worst rel) | gate ≤ `1e-4` | **2.170×10⁻⁷** (3/3 PASS) | `reference_pytorch.py` |
-| 64×64 forward | 74.142 ms (CPU ref) | **0.961 ms** | ~77.2× · pruned DFT CPU-in KEEP |
-| 128×128 forward | 89.000 ms (CPU ref) | **2.207 ms** | ~40.3× |
-| 256×256 forward | 295.983 ms (CPU ref) | **7.870 ms** | ~37.6× |
+| 项目 | 官网 / 参考 | 我们优化后（SUPA + Extension） | 说明 |
+|------|-------------|-------------------------------|------|
+| 正确性（最差相对误差） | 门槛 ≤ `1e-4` | **7.162×10⁻⁶**（3/3 PASS） | 默认裁剪路径官方三案；suFFT 三案曾报 2.170×10⁻⁷ |
+| 64×64 前向 | 74.142 ms（CPU 参考） | **0.764 ms** | 约 97.0× · 裁剪 DFT 融合 KEEP |
+| 128×128 前向 | 89.000 ms（CPU 参考） | **1.827 ms** | 约 48.7× · 双流拆 B |
+| 256×256 前向 | 295.983 ms（CPU 参考） | **6.504 ms** | 约 45.5× · 双流拆 B |
 
-KEEP measured 2026-08-15 (`warmup=10`, `iters=100`, CPU-in). Log: `results/run_logs/dual_path_probe_2026-08-15.md`. Previous suFFT idle: 3.797 / 8.037 / 29.295 ms (`official_recheck_2026-08-14.log`).
+对应原始 log：`results/run_logs/promote_pipe_b_2026-08-16.md`（`pipe_b_r1` · v12）。上一主表 0.762 / 1.981 / 7.324。
 
 Reproduce with `bash scripts/validate.sh`. Do not run `test_perf.py` unless you intend to rewrite `summary.json` on an idle card.
 
@@ -40,18 +40,16 @@ Reproduce: build the operator, then `python3 render_official_demo.py` in `fno_ns
 
 ### 2.1 Operator: from Host round-trips to on-device paths
 
-Early code did spatial work on device, FFT on Host, full-spectrum multiply on CPU, then copy back. At small sizes the **copies** cost more than the multiply.
+现在默认热路径是**裁剪 DFT**（只变换保留的低频双角），不是整幅厂商 FFT：
 
-**Reported** hot path in this release: pruned mixed-radix DFT / iDFT on kept bins (`pruned_*.su`), same dual-corner multiply. CPU-in KEEP **0.961 / 2.207 / 7.870 ms**. `SPECTRAL_PRUNED_FFT=0 SPECTRAL_PRUNED_INV=0` restores suFFT (previous idle 3.797 / 8.037 / 29.295 ms).
+1. **宽度混合基 rFFT + 高度两角 DFT**（只算 kept modes）。
+2. **自研 SUPA kernel** 做官网同款双角复数乘。
+3. **裁剪 iFFT** 变回空间域；CPU 入走 `_SPATIAL_OUT_CACHE`。源码：`spectral_conv/pruned_*.su`、`spectral_conv_ext.cpp`、`spectral_conv_ops.py`。
 
-Engineering around both paths: weight and spectrum caches; output-buffer reuse; Parameter identity in cache keys; CPU-in `_SPATIAL_OUT_CACHE` for `to_cpu=True`. FNO must not reuse that spatial buffer (`to_cpu=False` allocates a fresh packed irfft). Skip-roundtrip FNO, pinned H2D, and dual-n1 irfft were No-Go and reverted.
-
-Correctness stays on the official-style PyTorch reference. Worst rel **2.170×10⁻⁷**. Bonus: backward, 3D four-corner, irregular shapes.
+`SPECTRAL_PRUNED_FFT=0 SPECTRAL_PRUNED_INV=0` 可退回 suFFT fused（上一板 idle 3.797 / 8.037 / 29.295 ms）。
 
 ### 2.2 FNO: reuse the operator, squeeze L2 on official data
 
-- **Four** Fourier layers (width=32, modes=16, 64×64). Inference calls the same SpectralConv.
-- **Residual head**: predict the increment vs the last input frame.
-- **Official `.pt` untouched.** Split 1000/128, seed `20260722`. Periodic shifts, spectral-weighted loss, late spectral-weight updates, H⁻¹ high-frequency loss. Formal **0.035012**.
+性能对比对象是本机跑出来的**官网 CPU 参考脚本**：74.142 / 89.000 / 295.983 ms → **0.764 / 1.827 / 6.504 ms**。
 
 Figures come from `fno_ns/render_official_demo.py` on that official test set, then `visualize.py`.

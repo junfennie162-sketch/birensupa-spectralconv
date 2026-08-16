@@ -1,9 +1,9 @@
 # Agent / Skill log (official audit page)
 
-> **Required contest item** (Agent development ≈ 15% of the track score; missing or thin logs fail).  
-> Written to the handbook template so a judge can sample it directly. Full trail: [`development_log.md`](development_log.md) (**75+** numbered entries; original Chinese).  
-> Tool: Cursor Agent (SSH · Biren contest Docker · SDK `1.11.0.0.rc2`).  
-> Formal board: public NS64 L2 **0.035012** (`spec_ref_r2` · v10); Spectral **0.961 / 2.207 / 7.870 ms** (pruned DFT CPU-in KEEP, 2026-08-15).
+> **官方必须项**（赛道评分「Agent 开发」约 15%；缺失或不足 **视为不合格**）。  
+> 本页按选手手册模板撰写，供评委 **直接抽查**。全文轨迹见 [`development_log.md`](development_log.md)（共 **45** 段编号记录）。  
+> 工具：Cursor Agent（SSH · 壁仞竞赛 Docker · SDK `1.11.0.0.rc2`）。  
+> 现行主报：公开 NS64 L2 **0.035012**（`spec_ref_r2` · v10）；Spectral **0.764 / 1.827 / 6.504 ms**（`pipe_b_r1` · v12 · 2026-08-16）。
 
 ## Scene coverage (≥3 types · this page covers all 6)
 

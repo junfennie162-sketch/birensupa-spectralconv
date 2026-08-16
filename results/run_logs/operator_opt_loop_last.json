@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-14T01:58:02Z",
+  "updated_at": "2026-08-16T01:29:06Z",
   "dry_run": true,
   "strict": true,
   "public_ns64": {
@@ -11,31 +11,31 @@
     "next_probe_tag": "sched_samp_r1"
   },
   "engineering": {
-    "spectral_rel_error": 2.1701555345060285e-07,
+    "spectral_rel_error": 7.161657759121021e-06,
     "chain_ckpt_rel": 4.7575431381119415e-05,
     "batch16_gps": 1600295.3125298938
   },
   "spectral_rows": [
     {
       "resolution": "64x64",
-      "forward_time_ms": 3.797,
-      "memory_MB": 225.3
+      "forward_time_ms": 0.764,
+      "memory_MB": 119.0
     },
     {
       "resolution": "128x128",
-      "forward_time_ms": 8.037,
-      "memory_MB": 253.3
+      "forward_time_ms": 1.827,
+      "memory_MB": 135.0
     },
     {
       "resolution": "256x256",
-      "forward_time_ms": 29.295,
-      "memory_MB": 353.3
+      "forward_time_ms": 6.504,
+      "memory_MB": 183.0
     }
   ],
   "expected_ms": {
-    "64x64": 3.797,
-    "128x128": 8.037,
-    "256x256": 29.295
+    "64x64": 0.764,
+    "128x128": 1.827,
+    "256x256": 6.504
   },
   "required_assets": {
     "summary": true,
@@ -88,9 +88,9 @@
   "eval_report": {
     "count": 1,
     "single": true,
-    "latest": "/workspace/评测报告_最新指标_2026-08-14_095200.md"
+    "latest": "/workspace/评测报告_最新指标_2026-08-16_092531.md"
   },
-  "agent_records": 43,
+  "agent_records": 89,
   "precision_posture": "stopped_after_round7_no_signal",
   "process_sop": [
     {

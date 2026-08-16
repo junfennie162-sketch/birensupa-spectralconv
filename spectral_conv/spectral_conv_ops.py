@@ -33,9 +33,10 @@ _OUT_FREQ_CPU_CACHE: dict[tuple, torch.Tensor] = {}
 # activations (R7): allocate via CPU→SUPA once, then D2D copy_ before rfft.
 # Faster than R6 pinned D2H+H2D; same correctness (probe_sufft_provenance_r7).
 _SAFE_INPUT_CACHE: dict[tuple, torch.Tensor] = {}
+_DEVICE_IN_CACHE: dict[tuple, torch.Tensor] = {}
 # Legacy name kept cleared for callers that still mention pinned cache.
 _PINNED_INPUT_CACHE = _SAFE_INPUT_CACHE
-_BUFFER_CACHE_MAX = 4
+_BUFFER_CACHE_MAX = 16
 # Per-corner output buffer reuse: `spectral_mul` allocates a fresh
 # (B, Cout, M1, M2, 2) SUPA tensor each call; for hot loops that's
 # ~20 ms/call of pure allocator churn on Biren. Cache it.
@@ -43,6 +44,9 @@ _Y_FREQ_CACHE: dict[tuple, torch.Tensor] = {}
 # CPU-in only: reuse irfft spatial buffer. Do NOT return this to FNO
 # (to_cpu=False); aliasing with the next layer's add/IN breaks the chain.
 _SPATIAL_OUT_CACHE: dict[tuple, torch.Tensor] = {}
+_CACHE_POOL = 0
+_PIPE_ASYNC = False
+_PIPE_STREAMS: tuple | None = None
 # NOTE: caching the per-call corner slices (`x_freq[:, :, :M1, :M2, :]`)
 # did NOT help — the SUPA `.copy_()` from a strided slice costs more than
 # `.contiguous()` because PyTorch's strided->contig path on SUPA is a
@@ -97,6 +101,22 @@ def _buffer_cache_max() -> int:
     return _BUFFER_CACHE_MAX
 
 
+def _set_cache_pool(pool: int) -> None:
+    global _CACHE_POOL
+    _CACHE_POOL = int(pool)
+
+
+def _cache_key(base: tuple) -> tuple:
+    return base + (_CACHE_POOL,)
+
+
+def _pipe_streams() -> tuple:
+    global _PIPE_STREAMS
+    if _PIPE_STREAMS is None:
+        _PIPE_STREAMS = (torch.supa.Stream(), torch.supa.Stream())
+    return _PIPE_STREAMS
+
+
 def _out_freq_buffer(
     batch_size: int,
     channels_out: int,
@@ -115,7 +135,7 @@ def _out_freq_buffer(
     key so cache hits can skip ``zero_`` safely (corners fully overwritten,
     mid-band remains zero from allocation).
     """
-    key = (batch_size, channels_out, height, width_freq, str(device), modes1, modes2)
+    key = _cache_key((batch_size, channels_out, height, width_freq, str(device), modes1, modes2))
     buf = _OUT_FREQ_CACHE.get(key)
     if buf is None:
         buf = torch.zeros(
@@ -138,7 +158,7 @@ def _out_freq_buffer(
 
 def _host_out_buffer(sample: torch.Tensor) -> torch.Tensor:
     """Host staging for D2H; pinned when available. Returns a buffer we own."""
-    key = (tuple(sample.shape), sample.dtype)
+    key = _cache_key((tuple(sample.shape), sample.dtype))
     buf = _HOST_OUT_CACHE.get(key)
     if buf is None:
         try:
@@ -236,6 +256,7 @@ def clear_weight_supa_cache() -> None:
     _HOST_OUT_CACHE.clear()
     _OUT_FREQ_CPU_CACHE.clear()
     _PINNED_INPUT_CACHE.clear()
+    _DEVICE_IN_CACHE.clear()
     _SPATIAL_OUT_CACHE.clear()
 
 
@@ -266,7 +287,7 @@ def _roundtrip_supa_input(x: torch.Tensor) -> torch.Tensor:
     CPU-origin inputs reuse the same cached buffer so official CPU-in
     calls do not ``cudaMalloc`` a fresh H2D destination every time.
     """
-    key = (tuple(int(dimension) for dimension in x.shape), "float32")
+    key = _cache_key((tuple(int(dimension) for dimension in x.shape), "float32"))
     safe = _SAFE_INPUT_CACHE.get(key)
     if (
         safe is None
@@ -285,8 +306,35 @@ def _roundtrip_supa_input(x: torch.Tensor) -> torch.Tensor:
         src = src.to(torch.float32)
     if not src.is_contiguous():
         src = src.contiguous()
-    safe.copy_(src, non_blocking=False)
+    safe.copy_(src, non_blocking=_PIPE_ASYNC)
     return safe
+
+
+def _device_in_copy(x: torch.Tensor) -> torch.Tensor:
+    """CPU→SUPA into a device-allocated cache. Pruned DFT does not need host-origin.
+
+    Default OFF (`SPECTRAL_PRUNED_DEVICE_IN`). FNO device activations still use R7.
+    """
+    key = _cache_key((tuple(int(dimension) for dimension in x.shape), "float32"))
+    buf = _DEVICE_IN_CACHE.get(key)
+    if (
+        buf is None
+        or buf.device.type != "supa"
+        or tuple(buf.shape) != tuple(x.shape)
+        or buf.dtype != torch.float32
+    ):
+        buf = torch.empty(x.shape, dtype=torch.float32, device="supa")
+        cap = _buffer_cache_max()
+        if len(_DEVICE_IN_CACHE) >= cap:
+            _DEVICE_IN_CACHE.pop(next(iter(_DEVICE_IN_CACHE)))
+        _DEVICE_IN_CACHE[key] = buf
+    src = x.detach()
+    if src.dtype != torch.float32:
+        src = src.to(torch.float32)
+    if not src.is_contiguous():
+        src = src.contiguous()
+    buf.copy_(src, non_blocking=_PIPE_ASYNC)
+    return buf
 
 
 def _spatial_out_buffer(
@@ -297,7 +345,7 @@ def _spatial_out_buffer(
     device: torch.device,
 ) -> torch.Tensor:
     """Reuse irfft destination for CPU-in. Do not return this tensor to FNO."""
-    key = (batch_size, channels, height, width, str(device))
+    key = _cache_key((batch_size, channels, height, width, str(device)))
     buf = _SPATIAL_OUT_CACHE.get(key)
     if buf is None:
         buf = torch.empty(
@@ -327,7 +375,7 @@ def _y_freq_buffer(
     across corner1 + corner2 silently overlaps writes and corrupts output.
     Cap is `_BUFFER_CACHE_MAX`.
     """
-    key = (batch_size, channels_out, modes1, modes2, str(device), corner_id)
+    key = _cache_key((batch_size, channels_out, modes1, modes2, str(device), corner_id))
     buf = _Y_FREQ_CACHE.get(key)
     if buf is None:
         buf = torch.zeros(
@@ -352,7 +400,7 @@ def _out_freq_cpu_buffer(
     width_freq: int,
 ) -> torch.Tensor:
     """Reuse host spectrum buffer on v1 path to cut allocator churn / peak spikes."""
-    key = (batch_size, channels_out, height, width_freq)
+    key = _cache_key((batch_size, channels_out, height, width_freq))
     buf = _OUT_FREQ_CPU_CACHE.get(key)
     if buf is None:
         buf = torch.zeros(
@@ -497,6 +545,19 @@ def spectral_conv2d_fused(
     # Set SPECTRAL_PRUNED_FFT=0 / SPECTRAL_PRUNED_INV=0 to restore suFFT trunc.
     pruned_fft = _env_flag("SPECTRAL_PRUNED_FFT", True)
     pruned_inv = _env_flag("SPECTRAL_PRUNED_INV", True)
+    if (
+        to_cpu
+        and (not _PIPE_ASYNC)
+        and x.device.type != "supa"
+        and int(x.shape[0]) >= 2
+        and int(x.shape[0]) % 2 == 0
+        and int(x.shape[-2]) == int(x.shape[-1])
+        and int(x.shape[-2]) in (128, 256)
+        and modes1 == 16
+        and modes2 == 16
+        and _env_flag("SPECTRAL_PIPE_B", True)
+    ):
+        return _spectral_conv2d_fused_pipe(x, weights1, weights2, modes1, modes2)
     # Pruned kernels do not need suFFT's host-origin storage, but FNO still
     # feeds SUDNN Conv/IN activations into FFT. Default keeps the R7 copy.
     # SPECTRAL_PRUNED_SKIP_ROUNDTRIP=1 skips it (device-only spectral probes).
@@ -510,6 +571,12 @@ def spectral_conv2d_fused(
             x_supa = x_supa.to(torch.float32)
         if not x_supa.is_contiguous():
             x_supa = x_supa.contiguous()
+    elif (
+        pruned_fft
+        and x.device.type != "supa"
+        and _env_flag("SPECTRAL_PRUNED_DEVICE_IN", False)
+    ):
+        x_supa = _device_in_copy(x)
     else:
         x_supa = _roundtrip_supa_input(x)
     batch_size, _channels_in, height, width = x_supa.shape
@@ -518,6 +585,40 @@ def spectral_conv2d_fused(
 
     w1_supa = _weights_to_supa_cached(weights1)
     w2_supa = _weights_to_supa_cached(weights2)
+
+    if (
+        pruned_fft
+        and pruned_inv
+        and modes1 == 16
+        and modes2 == 16
+        and height == width
+        and height in (64, 128, 256)
+        and _env_flag("SPECTRAL_FUSED_E2E", False)
+    ):
+        if to_cpu:
+            y = _spatial_out_buffer(
+                batch_size, channels_out, height, width, x_supa.device
+            )
+        else:
+            y = torch.empty(
+                batch_size,
+                channels_out,
+                height,
+                width,
+                device=x_supa.device,
+                dtype=torch.float32,
+            )
+        spectral_conv_ext.spectral_conv2d_pruned_out(
+            x_supa, w1_supa, w2_supa, modes1, modes2, y
+        )
+        do_sync = to_cpu if synchronize is None else synchronize
+        if do_sync:
+            torch_br.supa.synchronize()
+        if to_cpu:
+            host = _host_out_buffer(y)
+            host.copy_(y.detach(), non_blocking=_PIPE_ASYNC)
+            return host
+        return y
 
     # P2–P4: column-FFT only first modes2 bins.
     # SPECTRAL_TRUNC_COL=1 force on; =0 force off; =auto (default) when
@@ -621,9 +722,74 @@ def spectral_conv2d_fused(
         # (NOT a clone) so peak memory stays bounded by one D2H copy. The
         # buffer will be overwritten by the next call into the same shape.
         host = _host_out_buffer(y)
-        host.copy_(y.detach(), non_blocking=False)
+        host.copy_(y.detach(), non_blocking=_PIPE_ASYNC)
         return host
     return y
+
+
+def _spectral_conv2d_fused_pipe(
+    x: torch.Tensor,
+    weights1: torch.Tensor,
+    weights2: torch.Tensor,
+    modes1: int,
+    modes2: int,
+) -> torch.Tensor:
+    """Split B across two SUPA streams so H2D / compute / D2H can overlap."""
+    global _PIPE_ASYNC
+    batch_size = int(x.shape[0])
+    mid = batch_size // 2
+    channels_out = int(weights1.shape[1])
+    height = int(x.shape[-2])
+    width = int(x.shape[-1])
+    host_key = _cache_key(((batch_size, channels_out, height, width), torch.float32))
+    host = _HOST_OUT_CACHE.get(host_key)
+    if host is None:
+        try:
+            host = torch.empty(
+                (batch_size, channels_out, height, width),
+                dtype=torch.float32,
+                pin_memory=True,
+            )
+        except (RuntimeError, TypeError):
+            host = torch.empty(
+                (batch_size, channels_out, height, width), dtype=torch.float32
+            )
+        _HOST_OUT_CACHE[host_key] = host
+    stream0, stream1 = _pipe_streams()
+    _PIPE_ASYNC = True
+    try:
+        _set_cache_pool(0)
+        spectral_conv_ext.set_stage_pool(0)
+        with torch.supa.stream(stream0):
+            y0 = spectral_conv2d_fused(
+                x[:mid],
+                weights1,
+                weights2,
+                modes1,
+                modes2,
+                to_cpu=False,
+                synchronize=False,
+            )
+            host[:mid].copy_(y0, non_blocking=True)
+        _set_cache_pool(1)
+        spectral_conv_ext.set_stage_pool(1)
+        with torch.supa.stream(stream1):
+            y1 = spectral_conv2d_fused(
+                x[mid:],
+                weights1,
+                weights2,
+                modes1,
+                modes2,
+                to_cpu=False,
+                synchronize=False,
+            )
+            host[mid:].copy_(y1, non_blocking=True)
+        torch.supa.synchronize()
+    finally:
+        _PIPE_ASYNC = False
+        _set_cache_pool(0)
+        spectral_conv_ext.set_stage_pool(0)
+    return host
 
 
 def _mul_corner_3d_supa(
