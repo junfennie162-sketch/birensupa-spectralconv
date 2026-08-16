@@ -1,0 +1,280 @@
+#include <supa.h>
+#include <supa_device.h>
+#include <math.h>
+
+#ifndef M_PIf
+#define M_PIf 3.14159265358979323846f
+#endif
+
+#define BF(ar, ai, br, bi, cs, sn) \
+    do { \
+        const float _tr = (br) * (cs) - (bi) * (sn); \
+        const float _ti = (br) * (sn) + (bi) * (cs); \
+        const float _ar = (ar); \
+        const float _ai = (ai); \
+        (br) = _ar - _tr; \
+        (bi) = _ai - _ti; \
+        (ar) = _ar + _tr; \
+        (ai) = _ai + _ti; \
+    } while (0)
+
+static __device__ void dft16_minus(float &r0, float &i0, float &r1, float &i1, float &r2, float &i2, float &r3, float &i3, float &r4, float &i4, float &r5, float &i5, float &r6, float &i6, float &r7, float &i7, float &r8, float &i8, float &r9, float &i9, float &r10, float &i10, float &r11, float &i11, float &r12, float &i12, float &r13, float &i13, float &r14, float &i14, float &r15, float &i15) {
+    { const float tr = r1; r1 = r8; r8 = tr; const float ti = i1; i1 = i8; i8 = ti; }
+    { const float tr = r2; r2 = r4; r4 = tr; const float ti = i2; i2 = i4; i4 = ti; }
+    { const float tr = r3; r3 = r12; r12 = tr; const float ti = i3; i3 = i12; i12 = ti; }
+    { const float tr = r5; r5 = r10; r10 = tr; const float ti = i5; i5 = i10; i10 = ti; }
+    { const float tr = r7; r7 = r14; r14 = tr; const float ti = i7; i7 = i14; i14 = ti; }
+    { const float tr = r11; r11 = r13; r13 = tr; const float ti = i11; i11 = i13; i13 = ti; }
+    // stage 1 len=2
+    BF(r0, i0, r1, i1, 1.0f, 0.0f);
+    BF(r2, i2, r3, i3, 1.0f, 0.0f);
+    BF(r4, i4, r5, i5, 1.0f, 0.0f);
+    BF(r6, i6, r7, i7, 1.0f, 0.0f);
+    BF(r8, i8, r9, i9, 1.0f, 0.0f);
+    BF(r10, i10, r11, i11, 1.0f, 0.0f);
+    BF(r12, i12, r13, i13, 1.0f, 0.0f);
+    BF(r14, i14, r15, i15, 1.0f, 0.0f);
+    // stage 2 len=4
+    BF(r0, i0, r2, i2, 1.0f, 0.0f);
+    BF(r1, i1, r3, i3, 0.0f, -1.0f);
+    BF(r4, i4, r6, i6, 1.0f, 0.0f);
+    BF(r5, i5, r7, i7, 0.0f, -1.0f);
+    BF(r8, i8, r10, i10, 1.0f, 0.0f);
+    BF(r9, i9, r11, i11, 0.0f, -1.0f);
+    BF(r12, i12, r14, i14, 1.0f, 0.0f);
+    BF(r13, i13, r15, i15, 0.0f, -1.0f);
+    // stage 3 len=8
+    BF(r0, i0, r4, i4, 1.0f, 0.0f);
+    BF(r1, i1, r5, i5, 0.707106781f, -0.707106781f);
+    BF(r2, i2, r6, i6, 0.0f, -1.0f);
+    BF(r3, i3, r7, i7, -0.707106781f, -0.707106781f);
+    BF(r8, i8, r12, i12, 1.0f, 0.0f);
+    BF(r9, i9, r13, i13, 0.707106781f, -0.707106781f);
+    BF(r10, i10, r14, i14, 0.0f, -1.0f);
+    BF(r11, i11, r15, i15, -0.707106781f, -0.707106781f);
+    // stage 4 len=16
+    BF(r0, i0, r8, i8, 1.0f, 0.0f);
+    BF(r1, i1, r9, i9, 0.923879533f, -0.382683432f);
+    BF(r2, i2, r10, i10, 0.707106781f, -0.707106781f);
+    BF(r3, i3, r11, i11, 0.382683432f, -0.923879533f);
+    BF(r4, i4, r12, i12, 0.0f, -1.0f);
+    BF(r5, i5, r13, i13, -0.382683432f, -0.923879533f);
+    BF(r6, i6, r14, i14, -0.707106781f, -0.707106781f);
+    BF(r7, i7, r15, i15, -0.923879533f, -0.382683432f);
+}
+
+__global__ void pruned_fft_h_m16_fact16x16_h256_ny4_kernel(int batch_size, int channels,
+                       const float *__restrict__ row_freq, float *__restrict__ packed) {
+    __shared__ float2 Z[4][16][16];
+    const int tid = static_cast<int>(threadIdx.x);
+    const int m2_local = tid & 3;
+    const int n1 = tid >> 2;
+    const int m2 = static_cast<int>(blockIdx.y) * 4 + m2_local;
+    const int plane_idx = static_cast<int>(blockIdx.x);
+    const int ch = plane_idx % channels;
+    const int b = plane_idx / channels;
+    const int row_plane = (b * channels + ch) * 256 * 32;
+    float u0r, u0i;
+    float u1r, u1i;
+    float u2r, u2i;
+    float u3r, u3i;
+    float u4r, u4i;
+    float u5r, u5i;
+    float u6r, u6i;
+    float u7r, u7i;
+    float u8r, u8i;
+    float u9r, u9i;
+    float u10r, u10i;
+    float u11r, u11i;
+    float u12r, u12i;
+    float u13r, u13i;
+    float u14r, u14i;
+    float u15r, u15i;
+    {
+        const int h = n1 + 0;
+        const int in = row_plane + (h * 16 + m2) * 2;
+        u0r = row_freq[in];
+        u0i = row_freq[in + 1];
+    }
+    {
+        const int h = n1 + 16;
+        const int in = row_plane + (h * 16 + m2) * 2;
+        u1r = row_freq[in];
+        u1i = row_freq[in + 1];
+    }
+    {
+        const int h = n1 + 32;
+        const int in = row_plane + (h * 16 + m2) * 2;
+        u2r = row_freq[in];
+        u2i = row_freq[in + 1];
+    }
+    {
+        const int h = n1 + 48;
+        const int in = row_plane + (h * 16 + m2) * 2;
+        u3r = row_freq[in];
+        u3i = row_freq[in + 1];
+    }
+    {
+        const int h = n1 + 64;
+        const int in = row_plane + (h * 16 + m2) * 2;
+        u4r = row_freq[in];
+        u4i = row_freq[in + 1];
+    }
+    {
+        const int h = n1 + 80;
+        const int in = row_plane + (h * 16 + m2) * 2;
+        u5r = row_freq[in];
+        u5i = row_freq[in + 1];
+    }
+    {
+        const int h = n1 + 96;
+        const int in = row_plane + (h * 16 + m2) * 2;
+        u6r = row_freq[in];
+        u6i = row_freq[in + 1];
+    }
+    {
+        const int h = n1 + 112;
+        const int in = row_plane + (h * 16 + m2) * 2;
+        u7r = row_freq[in];
+        u7i = row_freq[in + 1];
+    }
+    {
+        const int h = n1 + 128;
+        const int in = row_plane + (h * 16 + m2) * 2;
+        u8r = row_freq[in];
+        u8i = row_freq[in + 1];
+    }
+    {
+        const int h = n1 + 144;
+        const int in = row_plane + (h * 16 + m2) * 2;
+        u9r = row_freq[in];
+        u9i = row_freq[in + 1];
+    }
+    {
+        const int h = n1 + 160;
+        const int in = row_plane + (h * 16 + m2) * 2;
+        u10r = row_freq[in];
+        u10i = row_freq[in + 1];
+    }
+    {
+        const int h = n1 + 176;
+        const int in = row_plane + (h * 16 + m2) * 2;
+        u11r = row_freq[in];
+        u11i = row_freq[in + 1];
+    }
+    {
+        const int h = n1 + 192;
+        const int in = row_plane + (h * 16 + m2) * 2;
+        u12r = row_freq[in];
+        u12i = row_freq[in + 1];
+    }
+    {
+        const int h = n1 + 208;
+        const int in = row_plane + (h * 16 + m2) * 2;
+        u13r = row_freq[in];
+        u13i = row_freq[in + 1];
+    }
+    {
+        const int h = n1 + 224;
+        const int in = row_plane + (h * 16 + m2) * 2;
+        u14r = row_freq[in];
+        u14i = row_freq[in + 1];
+    }
+    {
+        const int h = n1 + 240;
+        const int in = row_plane + (h * 16 + m2) * 2;
+        u15r = row_freq[in];
+        u15i = row_freq[in + 1];
+    }
+    dft16_minus(u0r, u0i, u1r, u1i, u2r, u2i, u3r, u3i, u4r, u4i, u5r, u5i, u6r, u6i, u7r, u7i, u8r, u8i, u9r, u9i, u10r, u10i, u11r, u11i, u12r, u12i, u13r, u13i, u14r, u14i, u15r, u15i);
+    Z[m2_local][n1][0].x = u0r;
+    Z[m2_local][n1][0].y = u0i;
+    Z[m2_local][n1][1].x = u1r;
+    Z[m2_local][n1][1].y = u1i;
+    Z[m2_local][n1][2].x = u2r;
+    Z[m2_local][n1][2].y = u2i;
+    Z[m2_local][n1][3].x = u3r;
+    Z[m2_local][n1][3].y = u3i;
+    Z[m2_local][n1][4].x = u4r;
+    Z[m2_local][n1][4].y = u4i;
+    Z[m2_local][n1][5].x = u5r;
+    Z[m2_local][n1][5].y = u5i;
+    Z[m2_local][n1][6].x = u6r;
+    Z[m2_local][n1][6].y = u6i;
+    Z[m2_local][n1][7].x = u7r;
+    Z[m2_local][n1][7].y = u7i;
+    Z[m2_local][n1][8].x = u8r;
+    Z[m2_local][n1][8].y = u8i;
+    Z[m2_local][n1][9].x = u9r;
+    Z[m2_local][n1][9].y = u9i;
+    Z[m2_local][n1][10].x = u10r;
+    Z[m2_local][n1][10].y = u10i;
+    Z[m2_local][n1][11].x = u11r;
+    Z[m2_local][n1][11].y = u11i;
+    Z[m2_local][n1][12].x = u12r;
+    Z[m2_local][n1][12].y = u12i;
+    Z[m2_local][n1][13].x = u13r;
+    Z[m2_local][n1][13].y = u13i;
+    Z[m2_local][n1][14].x = u14r;
+    Z[m2_local][n1][14].y = u14i;
+    Z[m2_local][n1][15].x = u15r;
+    Z[m2_local][n1][15].y = u15i;
+    __syncthreads();
+    const int m1 = n1;
+    const int bin = m1 & 15;
+    float step_s, step_c;
+    int out_idx;
+    sincosf(-(2.0f * M_PIf) * static_cast<float>(m1) / 256.0f, &step_s, &step_c);
+    out_idx = ((b * channels + ch) * 256 + m1) * 32 + m2 * 2;
+    {
+        float acc_r = 0.0f;
+        float acc_i = 0.0f;
+        float wr = 1.0f;
+        float wi = 0.0f;
+#pragma unroll
+        for (int n1s = 0; n1s < 16; ++n1s) {
+            const float zr = Z[m2_local][n1s][bin].x;
+            const float zi = Z[m2_local][n1s][bin].y;
+            acc_r += zr * wr - zi * wi;
+            acc_i += zr * wi + zi * wr;
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        packed[out_idx] = acc_r;
+        packed[out_idx + 1] = acc_i;
+    }
+    sincosf(-(2.0f * M_PIf) * static_cast<float>(240 + m1) / 256.0f, &step_s, &step_c);
+    out_idx = ((b * channels + ch) * 256 + 240 + m1) * 32 + m2 * 2;
+    {
+        float acc_r = 0.0f;
+        float acc_i = 0.0f;
+        float wr = 1.0f;
+        float wi = 0.0f;
+#pragma unroll
+        for (int n1s = 0; n1s < 16; ++n1s) {
+            const float zr = Z[m2_local][n1s][bin].x;
+            const float zi = Z[m2_local][n1s][bin].y;
+            acc_r += zr * wr - zi * wi;
+            acc_i += zr * wi + zi * wr;
+            const float nr = wr * step_c - wi * step_s;
+            const float ni = wr * step_s + wi * step_c;
+            wr = nr;
+            wi = ni;
+        }
+        packed[out_idx] = acc_r;
+        packed[out_idx + 1] = acc_i;
+    }
+}
+
+
+extern "C" suError_t launch_pruned_fft_h_fact16x16_h256_ny4(const float *row_freq, float *packed,
+                                                        int batch_size, int channels,
+                                                        suStream_t stream) {
+    dim3 block(64);
+    dim3 grid(static_cast<unsigned>(batch_size * channels), 4u);
+    pruned_fft_h_m16_fact16x16_h256_ny4_kernel<<<grid, block, 0, stream>>>(
+        batch_size, channels, row_freq, packed);
+    return suGetLastError();
+}

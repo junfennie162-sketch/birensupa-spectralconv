@@ -1,7 +1,7 @@
 # 对照实验矩阵 · KEEP / KILL / ABORT
 
 > 用途：答辩/SCP「失败也展示」证据链。主报数字不得混入旁注行。  
-> 主报：公开 NS64 L2=**0.035012**（`spec_ref_r2` · **v10**）；Spectral idle=**0.764 / 1.827 / 6.504 ms**（`pipe_b_r1` · **v12**）。  
+> 主报：公开 NS64 L2=**0.035012**（`spec_ref_r2` · **v10**）；Spectral idle=**0.599 / 1.405 / 5.099 ms**（`pinned_src_r1` · **v13**）。  
 > 现行指针：[`run_logs/CURRENT.md`](run_logs/CURRENT.md) · 流程：[`../skills/operator_opt_loop/LOOP_PROCESS.md`](../skills/operator_opt_loop/LOOP_PROCESS.md) · 历史计划卡：[`run_logs/_history/OPT_WAVE_MULTIAGENT_PLAN_2026-08-03.md`](run_logs/_history/OPT_WAVE_MULTIAGENT_PLAN_2026-08-03.md)
 
 ## 创新点卡片（KEEP · 主卖点）

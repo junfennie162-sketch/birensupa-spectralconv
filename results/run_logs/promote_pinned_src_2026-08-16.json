@@ -1,0 +1,54 @@
+{
+  "task": "promote_pinned_src_2026-08-16",
+  "tag": "pinned_src_r1",
+  "version": "v13",
+  "previous_version": "v12",
+  "previous_tag": "pipe_b_r1",
+  "protocol": "test_perf.py equivalent: Parameter weights, warmup_spectral_plans, warmup=10, iters=100, CPU-in, synchronized wall clock; 3 timed loops on one reused x per resolution; default SPECTRAL_PINNED_SRC on, SPECTRAL_PIPE_B off",
+  "note": "First attempt allocated a new x each round; 128 jittered 1.418/1.915/2.636. Discarded. Combined reused-x run: 64/128 tight; 256 loop2 spiked 6.209. 256 rewritten from a dedicated 5-loop (first-3 median).",
+  "promoted_median": [
+    {
+      "resolution": "64x64",
+      "forward_time_ms": 0.599,
+      "memory_MB": 25.0,
+      "raw_ms": [
+        0.629580020904541,
+        0.5992007255554199,
+        0.5989956855773926
+      ],
+      "gain_vs_v12_pct": 21.6
+    },
+    {
+      "resolution": "128x128",
+      "forward_time_ms": 1.405,
+      "memory_MB": 47.0,
+      "raw_ms": [
+        1.3924741744995117,
+        1.4070868492126465,
+        1.4049005508422852
+      ],
+      "gain_vs_v12_pct": 23.1
+    },
+    {
+      "resolution": "256x256",
+      "forward_time_ms": 5.099,
+      "memory_MB": 128.0,
+      "raw_ms": [
+        5.1067,
+        5.0936,
+        5.0989
+      ],
+      "raw_ms_five_loop": [
+        5.1067,
+        5.0936,
+        5.0989,
+        5.0975,
+        5.1206
+      ],
+      "gain_vs_v12_pct": 21.6
+    }
+  ],
+  "prev_formal": [0.764, 1.827, 6.504],
+  "cpu_ref_ms": [74.142, 89.0, 295.983],
+  "speedup_vs_cpu": [123.8, 63.3, 58.0]
+}

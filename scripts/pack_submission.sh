@@ -27,7 +27,7 @@ cat > "$STAGE/SUBMIT_README.md" <<EOF
 # 翻斗花园 · 提交包 ${STAMP}
 
 ## 正式指标
-- SpectralConv idle：0.764 / 1.827 / 6.504 ms @64/128/256（pipe_b_r1 · v12）；worst rel ≈7.16e-6
+- SpectralConv idle：0.599 / 1.405 / 5.099 ms @64/128/256（pinned_src_r1 · v13）；worst rel ≈7.16e-6
 - FNO 公开 NS64（1000/128）：relative L2 = **0.035012**（\`spec_ref_r2\` · **v10**）
   - 上一正式 v9：0.035115（\`dualview_r2\`）
   - data: \`fno_ns/data/navier_stokes_v1e-3_N1200_T20.pt\`

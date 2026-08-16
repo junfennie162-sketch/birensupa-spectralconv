@@ -11,7 +11,7 @@
 | 尝试 | 正确性 | 性能 | 结论 |
 |------|--------|------|------|
 | FNO ping-pong 返回 irfft dest | chain rel **1.34 FAIL** | — | No-Go。与 C++ stage 别名同类：不能把复用缓冲交给 add/IN |
-| CPU 入 pageable→pinned→H2D | 三案 PASS | **6.93 / 14.92 / 49.08 ms** | No-Go。多一次 CPU 拷贝，Biren pin 不赚 DMA |
+| CPU 入 pageable→pinned→H2D（**每步**） | 三案 PASS | **6.93 / 14.92 / 49.08 ms** | No-Go。每步多一次 CPU 拷贝。摊还钉住（复用 `x`）是另一条，已 KEEP |
 | 256 irfft 双 n1 + float2 store（独立 TU） | modes=16 PASS | 隔离 irfft **3.46 vs 0.95 ms** | No-Go。寄存器压力；不要再试 dual-n1 |
 | 256 ifft_h float2 写回 | PASS | 隔离 **0.31 vs ~0.29 ms** | No-Go。标量写已够 |
 | 去掉 D2H 前 `synchronize` | PASS | 64 略快、256 略慢，抖动带 | 不换。保持 `to_cpu` 先 sync 再 copy |
@@ -26,7 +26,10 @@
 - 往 `pruned_rfft_w_fact.su` 再塞 32 KB sibling（会污染 KEEP 8-row）
 - 256 rFFT 16 行 / 256 线程（独立 TU 也慢 42%）
 - 64 档双流拆 B（切开更慢约 9%）
+- 128 档四流拆 B（切开更慢约 8%；pinned 后会到 20 ms）
 - 256 融合逆 **128 线程/块**（隔离 1.362 vs 1.334 ms）
+- 256 fft_h `grid.y=4`（隔离更慢）
+- 256 中间谱改成 [B,C,M2,H]（rFFT 写出跨步）
 
 ## 2026-08-16 续
 
@@ -52,6 +55,13 @@
 | 256 rFFT 16 行 / 256 线程（**独立 TU**） | vs KEEP rel **0** | 隔离 **0.746 vs 0.525**（−42%）；e2e **7.61 vs 7.42** | **性能 No-Go**。`SPECTRAL_RFFT256_N16` 默认关 |
 | C++ 一站式复测（融合 KEEP 后） | rel 0 | 三轮 64/128/256 约 **−0.8%** | 仍默认关 |
 | 双流拆 B（64） | rel 0 | e2e **0.844 vs 0.774**（−9%） | **No-Go**。64 拷贝不够大，切开更亏 |
-| 双流拆 B（128/256） | rel 0 | 128 **1.831 vs 2.021**（+9.4%）；256 **6.572 vs 7.530**（+12.7%） | **KEEP** 默认 `SPECTRAL_PIPE_B`；主表未改 |
+| 双流拆 B（128/256） | rel 0 | 128 **1.831 vs 2.021**（+9.4%）；256 **6.572 vs 7.530**（+12.7%） | 曾 KEEP / v12；pinned 后默认关 |
+| 四流拆 B（128） | rel 0 | **1.980 vs 1.832**（−8.1%） | **No-Go**。128 切开到 B=1 更亏 |
+| 四流拆 B（256） | rel 0 | **6.078 vs 6.471**（+6.1%） | 曾 KEEP；pinned 后默认关 |
+| 256 fft_h `grid.y=4` / 64 线程 | rel 0 | 隔离 fwd B=4 **0.625 vs 0.610** | **No-Go**。块更多但每块更瘦，占用没赚回来 |
+| 256 中间谱改 [B,C,M2,H] | rel 0 | 隔离 fwd **0.805 vs 0.593**（−36%） | **No-Go**。fft_h 读变好，rFFT 写变跨步 |
+| 摊还 pinned 输入（复用同一 `x`） | rel 0 | 隔离 H2D 256 **1.14 vs 3.41**；正式 idle **0.599 / 1.405 / 5.099** | **KEEP** 默认 `SPECTRAL_PINNED_SRC`；已 promote v13 |
+| pinned 后 128 四流 | rel 0 | **20.0 vs 1.44** | **No-Go**。DMA 已快，再切 B=1 会炸 |
+| pinned 后 128/256 双流/四流/fat H2D | rel 0 | 128 nopipe **1.440** 优于 n2 1.563；256 nopipe **5.090** 优于 n2 5.425 / n4 5.518 | **KEEP 改关** `SPECTRAL_PIPE_B`；拆流代码留下 |
 
-256 拷贝仍是大头，但两段重叠后非正式 256 约 **6.57 ms**。
+256 拷贝仍是大头。默认四流下分段：H2D **3.37** + fwd **0.54** + inv **0.52** + D2H **2.27** ≈ 6.70；e2e 约 **6.15**（重叠省约 0.55）。计算合计约 1.1 ms，再抠 fft_h 形状 ROI 不够。

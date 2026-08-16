@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-16T01:29:06Z",
+  "updated_at": "2026-08-16T01:53:02Z",
   "dry_run": true,
   "strict": true,
   "public_ns64": {
@@ -18,24 +18,24 @@
   "spectral_rows": [
     {
       "resolution": "64x64",
-      "forward_time_ms": 0.764,
-      "memory_MB": 119.0
+      "forward_time_ms": 0.599,
+      "memory_MB": 25.0
     },
     {
       "resolution": "128x128",
-      "forward_time_ms": 1.827,
-      "memory_MB": 135.0
+      "forward_time_ms": 1.405,
+      "memory_MB": 47.0
     },
     {
       "resolution": "256x256",
-      "forward_time_ms": 6.504,
-      "memory_MB": 183.0
+      "forward_time_ms": 5.099,
+      "memory_MB": 128.0
     }
   ],
   "expected_ms": {
-    "64x64": 0.764,
-    "128x128": 1.827,
-    "256x256": 6.504
+    "64x64": 0.599,
+    "128x128": 1.405,
+    "256x256": 5.099
   },
   "required_assets": {
     "summary": true,
@@ -88,9 +88,9 @@
   "eval_report": {
     "count": 1,
     "single": true,
-    "latest": "/workspace/评测报告_最新指标_2026-08-16_092531.md"
+    "latest": "/workspace/评测报告_最新指标_2026-08-16_094942.md"
   },
-  "agent_records": 89,
+  "agent_records": 94,
   "precision_posture": "stopped_after_round7_no_signal",
   "process_sop": [
     {

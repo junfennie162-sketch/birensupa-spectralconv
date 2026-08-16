@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-16T01:25:31Z",
+  "updated_at": "2026-08-16T01:49:42Z",
   "current_phase": "submit_gate",
-  "notes": "submit_gate done. public L2=0.035012 (spec_ref_r2 / v10); Spectral 0.764/1.827/6.504 ms (pipe_b_r1 / v12, 2026-08-16).",
+  "notes": "submit_gate done. public L2=0.035012 (spec_ref_r2 / v10); Spectral 0.599/1.405/5.099 ms (pinned_src_r1 / v13, 2026-08-16).",
   "phases": {
     "skeleton": {
       "title": "仓库骨架与选题对齐",

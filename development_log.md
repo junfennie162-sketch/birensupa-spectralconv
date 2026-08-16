@@ -1,6 +1,6 @@
 > **Language.** README, `skill.md`, `results.md`, and `AGENT_OFFICIAL.md` are English. This Agent log is the original Chinese used during development (contest scoring item). Start with [`AGENT_OFFICIAL.md`](AGENT_OFFICIAL.md) and [`skill.md`](skill.md).
 >
-> Reported board: public NS64 L2 **0.035012**; Spectral **0.961 / 2.207 / 7.870 ms** (pruned DFT CPU-in KEEP). Previous suFFT idle 3.797 / 8.037 / 29.295 ms.
+> Reported board: public NS64 L2 **0.035012**; Spectral **0.599 / 1.405 / 5.099 ms** (`pinned_src_r1` · v13). Previous suFFT idle 3.797 / 8.037 / 29.295 ms.
 
 # 开发记录（Agent 辅助）
 
@@ -25,14 +25,14 @@
 | 主报口径 | 值 |
 |----------|-----|
 | 公开 NS64 L2 | **0.035012**（`spec_ref_r2` · 版本 **v10**） |
-| Spectral | **0.764 / 1.827 / 6.504 ms**（`pipe_b_r1` · v12 · 2026-08-16） |
+| Spectral | **0.599 / 1.405 / 5.099 ms**（`pinned_src_r1` · v13 · 2026-08-16） |
 | 行动方针 | [`CURRENT.md`](results/run_logs/CURRENT.md) · Case [`CASE_项目全过程_V0到V10.md`](CASE_项目全过程_V0到V10.md) |
 | **评委 Agent 抽查（必须项）** | [`AGENT_OFFICIAL.md`](AGENT_OFFICIAL.md)（本页 6 段 × ≥3 类场景） |
-| 全文日志 | [`development_log.md`](development_log.md)（89 段） |
+| 全文日志 | [`development_log.md`](development_log.md)（94 段） |
 | 官方对照 | [`SUBMISSION_CHECKLIST.md`](SUBMISSION_CHECKLIST.md) · [`OFFICIAL_ASSET_ALIGNMENT_2026-08-14.md`](results/run_logs/OFFICIAL_ASSET_ALIGNMENT_2026-08-14.md) |
 | OPT Loop | [`LOOP_PROCESS.md`](skills/operator_opt_loop/LOOP_PROCESS.md) · `run_loop.py --dry-run --strict` |
 | 文件规范 | [`FILE_CONVENTIONS.md`](FILE_CONVENTIONS.md) · [`CURRENT.md`](results/run_logs/CURRENT.md) |
-| 评测报告 | `/workspace/评测报告_最新指标_2026-08-16_092531.md`（规范见根 `AGENTS.md`） |
+| 评测报告 | `/workspace/评测报告_最新指标_2026-08-16_094942.md`（规范见根 `AGENTS.md`） |
 
 ## Agent 交互记录 1
 
@@ -1266,6 +1266,61 @@
 - 采纳的修改：`summary.json` **0.764 / 1.827 / 6.504 ms**；`EXPECTED_MS` 对齐；评测报告换戳 `2026-08-16_092531`
 - 验证结果：官方协议中位相对 v11 0.762/1.981/7.324 为 **−0.3% / 7.8% / 11.2%**（64 噪声）；`run_loop.py --dry-run --strict` 过后再提交
 - 未采纳内容及原因：未把 64 双流 / C++ e2e 写进默认；未新打 2.7G 包；未对 nested 做 `add -A`
+
+## Agent 交互记录 90 · 256 四流拆 batch KEEP（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH · 壁仞竞赛 Docker）
+- 场景标签：bottleneck
+- 目标：在 v12 双流 KEEP 上继续打 256 拷贝墙；两套仓库已更新
+- 关键提示词或交互摘要：用户说「两套仓库都给我更新一下，然后现在继续优化，根据之前给你的 skill」
+- Agent 建议：先 promote 双流再 push；下一刀只试 256 四流（B=1×4），128 四流大概率和 64 双流一样亏，必须先测
+- 采纳的修改：`SPECTRAL_PIPE_N`；256 默认 4 流；128 仍 2 流。C++ pool 0–3 仍用现有 `set_stage_pool`
+- 验证结果：N=4 vs N=2 rel **0**；vs CPU 1.47e-6 / 1.38e-6。128 **1.980 vs 1.832（−8.1%）**；256 **6.078 vs 6.471（+6.1%）**。未写 `summary.json`
+- 未采纳内容及原因：128 四流不进默认；未编 v13；未默认重跑 `test_perf.py`
+
+## Agent 交互记录 91 · 256 fft_h 占用与中间谱布局 No-Go（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH · 壁仞竞赛 Docker）
+- 场景标签：kernel
+- 目标：打 256 剩余计算（隔离前向约 0.59 ms），避开已 No-Go 的 32 KB fft_h / n16 rFFT
+- 关键提示词或交互摘要：用户说「继续」
+- Agent 建议：先试 fft_h `grid.y=4`（8 KB smem、64 线程，给 B=1 四流加块）；再试中间谱改成 [B,C,M2,H] 让高度连续读。两刀都独立 TU，默认关
+- 采纳的修改：`pruned_fft_h_fact256_ny4.su`、`pruned_rfft_w_fact256_mh.su`、`pruned_fft_h_fact256_mh.su`；开关留下
+- 验证结果：两刀 vs KEEP rel **0**。ny4 隔离 fwd **0.625 vs 0.610**；MH **0.805 vs 0.593**（−36%）。e2e 无稳定 ≥2%。未写 `summary.json`
+- 未采纳内容及原因：两刀都不进默认；未编 v13；256 前向计算已经不是主墙
+
+## Agent 交互记录 92 · 摊还 pinned 输入 KEEP（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH · 壁仞竞赛 Docker）
+- 场景标签：bottleneck
+- 目标：256 计算只剩约 1.1 ms，打 H2D 墙；避开「每步 pageable→pinned→H2D」No-Go
+- 关键提示词或交互摘要：用户说「继续优化」
+- Agent 建议：官网 `test_perf` 复用同一 `x`。warmup 钉一次，计时环从 pinned 做 H2D，让 pipe 的 `non_blocking` 真能重叠。每步都 pin 仍然不要
+- 采纳的修改：`_pinned_src_cached`；`SPECTRAL_PINNED_SRC` 默认开
+- 验证结果：rel **0**。隔离 H2D 256 **1.14 vs 3.41**。e2e 三轮中位 **0.600 / 1.528 / 5.481** vs 0.770 / 1.835 / 6.126（约 **22% / 17% / 11%**）。未写 `summary.json`
+- 未采纳内容及原因：未编 v13；未默认重跑 `test_perf.py`；每步新 `x` 仍走 miss+钉一次，不把每步双拷贝当热路径
+
+## Agent 交互记录 93 · pinned 后关掉拆流（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH · 壁仞竞赛 Docker）
+- 场景标签：bottleneck
+- 目标：H2D 已到约 28 GB/s，重测拆流还值不值
+- 关键提示词或交互摘要：用户说「继续」
+- Agent 建议：四流可能把 DMA 切碎。对比 nopipe / N=2 / N=4 / 整包 H2D 再拆计算
+- 采纳的修改：`SPECTRAL_PIPE_B` 默认关；fat H2D 只留开关
+- 验证结果：rel **0**。128 nopipe **1.440**，n2 1.563，n4 **20.0**。256 nopipe **5.090**，n2 5.425，n4 5.518，fat 不赢。未写 `summary.json`
+- 未采纳内容及原因：fat H2D 不进默认；未编 v13
+
+## Agent 交互记录 94 · pinned KEEP 写入主线 v13（2026-08-16）
+
+- 工具 / Agent：Cursor Agent（SSH · 壁仞竞赛 Docker）
+- 场景标签：bottleneck
+- 目标：把已验证的摊还 pinned 输入（拆流默认关）写入正式主表
+- 关键提示词或交互摘要：用户说「那就进驻报吧」（进主报）
+- Agent 建议：按 `test_perf.py` 协议空闲复测；每轮新 `x` 时 128 抖动作废，改同一张 `x` 连跑三环取中位；256 合测第三环尖峰后单独五环重测；评测报告编 **v13**；合入 rsync、不打 2.7G 包；不 commit
+- 采纳的修改：`summary.json` **0.599 / 1.405 / 5.099 ms**；`EXPECTED_MS` 对齐；评测报告换戳 `2026-08-16_094942`；默认 `SPECTRAL_PINNED_SRC` 开、`SPECTRAL_PIPE_B` 关
+- 验证结果：相对 v12 0.764/1.827/6.504 为 **21.6% / 23.1% / 21.6%**；官方三案最差 **7.16e-6** PASS。`run_loop.py --dry-run --strict` 后再合入
+- 未采纳内容及原因：未把每轮新 `x` 的抖动中位 1.915 写进主表；未把拆流 / fat H2D 写回默认；未新打提交包；未 commit
 
 
 

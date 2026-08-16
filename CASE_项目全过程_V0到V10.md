@@ -8,21 +8,21 @@
 
 ## 0. 一页结论（先看这个）
 
-| 项 | 现行结果（FNO v10 · Spectral v11 · 2026-08-16） |
+| 项 | 现行结果（FNO v10 · Spectral v13 · 2026-08-16） |
 |----|--------------------------------------|
 | 赛事 | 书生国智科探挑战赛 · 壁仞飞翔杯 · 赛道五（模型与算子） |
 | 队伍 | 翻斗花园 · 中北大学 |
 | 必选 | 2D Spectral Convolution（SUPA + PyTorch Extension，方式二） |
 | 选修 | FNO 预测二维不可压 Navier-Stokes **涡度**（公开 NS64） |
 | Spectral 正确性 | 默认裁剪路径 worst rel **7.16×10⁻⁶**（阈值 1e-4）· 3/3 PASS |
-| Spectral 性能 | idle **0.764 / 1.827 / 6.504 ms** @64/128/256（`pipe_b_r1` · v12） |
+| Spectral 性能 | idle **0.599 / 1.405 / 5.099 ms** @64/128/256（`pinned_src_r1` · v13） |
 | FNO 公开 NS64 | relative L2 **0.035012** · tag **`spec_ref_r2`** |
 | 相对公开集起点 v1 | 0.041835 → 0.035012，误差下降约 **16.3%** |
 | 评测协议 | 数据 `navier_stokes_v1e-3_N1200_T20.pt` · 1000/128 · seed 20260722 · 10→1 · residual |
 | Checkpoint | `fno_ns/checkpoints/fno_ns_public_demo.pt` |
 | 提交包 | `results/archives/fandougarden_submit_20260811_103945.tar.gz` |
 
-**一句话：**必选算子走裁剪 DFT + SUPA 双角乘（融合 KEEP + 128/256 双流拆 B），formal ms 现为 **0.764 / 1.827 / 6.504**；选修 FNO 在公开 NS64 上按「破 gate 才 promote」从 0.0418 抠到 0.035012，最后一跳是 Spectral-Refiner lite。
+**一句话：**必选算子走裁剪 DFT + SUPA 双角乘（融合 KEEP + 摊还 pinned 输入；拆流默认关），formal ms 现为 **0.599 / 1.405 / 5.099**；选修 FNO 在公开 NS64 上按「破 gate 才 promote」从 0.0418 抠到 0.035012，最后一跳是 Spectral-Refiner lite。
 
 ---
 

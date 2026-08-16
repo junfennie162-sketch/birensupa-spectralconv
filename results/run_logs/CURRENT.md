@@ -3,8 +3,8 @@
 | 项 | 现行值 |
 |----|--------|
 | 公开 NS64 L2 | **0.035012** |
-| Spectral 64 / 128 / 256 | **0.764 / 1.827 / 6.504 ms**（`pipe_b_r1` · v12 · 2026-08-16） |
-| 评测报告 | [`评测报告_最新指标_2026-08-16_092531.md`](../评测报告_最新指标_2026-08-16_092531.md) |
+| Spectral 64 / 128 / 256 | **0.599 / 1.405 / 5.099 ms**（`pinned_src_r1` · v13 · 2026-08-16） |
+| 评测报告 | [`评测报告_最新指标_2026-08-16_094942.md`](../评测报告_最新指标_2026-08-16_094942.md) |
 | Agent 抽查 | [`AGENT_OFFICIAL.md`](../../AGENT_OFFICIAL.md) |
 | 正确性报告 | [`正确性验证报告_2026-08-14.md`](正确性验证报告_2026-08-14.md) |
 | 性能报告 | [`性能检测报告_2026-08-14.md`](性能检测报告_2026-08-14.md) |
@@ -34,3 +34,9 @@
 | 脏树整理（2026-08-16） | [`dirty_tree_cleanup_2026-08-16.md`](dirty_tree_cleanup_2026-08-16.md)（嵌套仓 `git reset`；不 commit） |
 | 双流拆 batch（2026-08-16） | [`pipe_b_probe_2026-08-16.md`](pipe_b_probe_2026-08-16.md)（128/256 KEEP 默认开；64 关） |
 | pipe KEEP 写入主表（2026-08-16） | [`promote_pipe_b_2026-08-16.md`](promote_pipe_b_2026-08-16.md)（**0.764 / 1.827 / 6.504** · v12） |
+| pinned KEEP 写入主表（2026-08-16） | [`promote_pinned_src_2026-08-16.md`](promote_pinned_src_2026-08-16.md)（**0.599 / 1.405 / 5.099** · v13） |
+| 四流拆 batch（2026-08-16） | [`pipe_n4_probe_2026-08-16.md`](pipe_n4_probe_2026-08-16.md)（256 KEEP 默认 N=4；128 关；主表未改） |
+| 256 fft_h grid.y=4（2026-08-16） | [`ffth256_ny4_probe_2026-08-16.md`](ffth256_ny4_probe_2026-08-16.md)（**No-Go**；默认关） |
+| 256 中间谱 MH（2026-08-16） | [`rowfreq_mh_probe_2026-08-16.md`](rowfreq_mh_probe_2026-08-16.md)（**No-Go**；默认关） |
+| 摊还 pinned 输入（2026-08-16） | [`pinned_src_probe_2026-08-16.md`](pinned_src_probe_2026-08-16.md)（KEEP 默认开；已 promote v13） |
+| pinned 后重调拆流（2026-08-16） | [`pipe_retune_probe_2026-08-16.md`](pipe_retune_probe_2026-08-16.md)（默认关 pipe；nopipe 正式 **1.405 / 5.099**） |

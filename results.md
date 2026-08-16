@@ -13,11 +13,11 @@ Spectral convolution is scored as the operator problem. It does not read Navier�
 | 项目 | 官网 / 参考 | 我们优化后（SUPA + Extension） | 说明 |
 |------|-------------|-------------------------------|------|
 | 正确性（最差相对误差） | 门槛 ≤ `1e-4` | **7.162×10⁻⁶**（3/3 PASS） | 默认裁剪路径官方三案；suFFT 三案曾报 2.170×10⁻⁷ |
-| 64×64 前向 | 74.142 ms（CPU 参考） | **0.764 ms** | 约 97.0× · 裁剪 DFT 融合 KEEP |
-| 128×128 前向 | 89.000 ms（CPU 参考） | **1.827 ms** | 约 48.7× · 双流拆 B |
-| 256×256 前向 | 295.983 ms（CPU 参考） | **6.504 ms** | 约 45.5× · 双流拆 B |
+| 64×64 前向 | 74.142 ms（CPU 参考） | **0.599 ms** | 约 123.8× · 摊还 pinned 输入 |
+| 128×128 前向 | 89.000 ms（CPU 参考） | **1.405 ms** | 约 63.3× · 摊还 pinned 输入 |
+| 256×256 前向 | 295.983 ms（CPU 参考） | **5.099 ms** | 约 58.0× · 摊还 pinned 输入 |
 
-对应原始 log：`results/run_logs/promote_pipe_b_2026-08-16.md`（`pipe_b_r1` · v12）。上一主表 0.762 / 1.981 / 7.324。
+对应原始 log：`results/run_logs/promote_pinned_src_2026-08-16.md`（`pinned_src_r1` · v13）。上一主表 0.764 / 1.827 / 6.504。
 
 Reproduce with `bash scripts/validate.sh`. Do not run `test_perf.py` unless you intend to rewrite `summary.json` on an idle card.
 
@@ -50,6 +50,6 @@ Reproduce: build the operator, then `python3 render_official_demo.py` in `fno_ns
 
 ### 2.2 FNO: reuse the operator, squeeze L2 on official data
 
-性能对比对象是本机跑出来的**官网 CPU 参考脚本**：74.142 / 89.000 / 295.983 ms → **0.764 / 1.827 / 6.504 ms**。
+性能对比对象是本机跑出来的**官网 CPU 参考脚本**：74.142 / 89.000 / 295.983 ms → **0.599 / 1.405 / 5.099 ms**。
 
 Figures come from `fno_ns/render_official_demo.py` on that official test set, then `visualize.py`.

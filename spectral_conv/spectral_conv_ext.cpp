@@ -49,6 +49,12 @@ extern "C" suError_t launch_pruned_rfft_w_fact16x16_w256(const float *x, float *
 extern "C" suError_t launch_pruned_rfft_w_fact16x16_w256_n16(const float *x, float *row_freq,
                                                          int batch_size, int channels, int height,
                                                          suStream_t stream);
+extern "C" suError_t launch_pruned_rfft_w_fact16x16_w256_mh(const float *x, float *row_freq,
+                                                            int batch_size, int channels, int height,
+                                                            suStream_t stream);
+extern "C" suError_t launch_pruned_fft_h_fact16x16_h256_mh(const float *row_freq, float *packed,
+                                                           int batch_size, int channels,
+                                                           suStream_t stream);
 extern "C" suError_t launch_pruned_rfft_w_fact16x4_w64(const float *x, float *row_freq,
                                                        int batch_size, int channels, int height,
                                                        suStream_t stream);
@@ -70,6 +76,9 @@ extern "C" suError_t launch_pruned_fft_h_fact16x8_h128(const float *row_freq, fl
 extern "C" suError_t launch_pruned_fft_h_fact16x16_h256(const float *row_freq, float *packed,
                                                         int batch_size, int channels,
                                                         suStream_t stream);
+extern "C" suError_t launch_pruned_fft_h_fact16x16_h256_ny4(const float *row_freq, float *packed,
+                                                            int batch_size, int channels,
+                                                            suStream_t stream);
 extern "C" suError_t launch_pruned_rfft_w_coop(const float *x, float *row_freq,
                                                int batch_size, int channels, int height,
                                                int width, int modes2, suStream_t stream);
@@ -795,6 +804,11 @@ torch::Tensor rfft2_pruned_trunc(torch::Tensor x, int64_t modes1_i64, int64_t mo
                              x_contig.data_ptr<float>(), row.data_ptr<float>(), batch_size,
                              channels, height, nullptr),
                          "launch_pruned_rfft_w_fact16x16_w256_n16");
+        } else if (env_flag("SPECTRAL_ROWFREQ_MH", false)) {
+            check_status(launch_pruned_rfft_w_fact16x16_w256_mh(
+                             x_contig.data_ptr<float>(), row.data_ptr<float>(), batch_size,
+                             channels, height, nullptr),
+                         "launch_pruned_rfft_w_fact16x16_w256_mh");
         } else {
             check_status(launch_pruned_rfft_w_fact16x16_w256(
                              x_contig.data_ptr<float>(), row.data_ptr<float>(), batch_size,
@@ -828,9 +842,22 @@ torch::Tensor rfft2_pruned_trunc(torch::Tensor x, int64_t modes1_i64, int64_t mo
                                               nullptr),
                      "launch_pruned_fft_h_coop");
     } else if (modes1 == 16 && modes2 == 16 && height == 256) {
-        check_status(launch_pruned_fft_h_fact16x16_h256(row.data_ptr<float>(), packed.data_ptr<float>(),
-                                                        batch_size, channels, nullptr),
-                     "launch_pruned_fft_h_fact16x16_h256");
+        if (env_flag("SPECTRAL_ROWFREQ_MH", false)) {
+            check_status(launch_pruned_fft_h_fact16x16_h256_mh(
+                             row.data_ptr<float>(), packed.data_ptr<float>(), batch_size,
+                             channels, nullptr),
+                         "launch_pruned_fft_h_fact16x16_h256_mh");
+        } else if (env_flag("SPECTRAL_FFTH256_NY4", false)) {
+            check_status(launch_pruned_fft_h_fact16x16_h256_ny4(
+                             row.data_ptr<float>(), packed.data_ptr<float>(), batch_size,
+                             channels, nullptr),
+                         "launch_pruned_fft_h_fact16x16_h256_ny4");
+        } else {
+            check_status(launch_pruned_fft_h_fact16x16_h256(
+                             row.data_ptr<float>(), packed.data_ptr<float>(), batch_size,
+                             channels, nullptr),
+                         "launch_pruned_fft_h_fact16x16_h256");
+        }
     } else if (modes1 == 16 && modes2 == 16 && height == 128) {
         check_status(launch_pruned_fft_h_fact16x8_h128(row.data_ptr<float>(), packed.data_ptr<float>(),
                                                        batch_size, channels, nullptr),

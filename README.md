@@ -13,7 +13,7 @@ https://github.com/junfennie162-sketch/birensupa-spectralconv
 
 On one **Biren106B** card we implement FNO's core 2D **Spectral Convolution** with **SUPA + a PyTorch extension** (contest Route 2), then assemble **four** Fourier layers for public-set vorticity prediction on 2D incompressible Navier–Stokes. Cursor / Biren Agent logs are part of the submission.
 
-> 仓库简介：BIREN SUPA 上的 2D Spectral Convolution（裁剪 DFT + 设备复数乘 + 裁剪 iFFT）+ 四层 FNO-NS。公开 NS64 L2 **0.035012**；算子默认路径 worst rel **7.16e-6**，**0.764 / 1.827 / 6.504 ms** @64/128/256；FNO batch-16 **5.26M** grid points/s。
+> 仓库简介：BIREN SUPA 上的 2D Spectral Convolution（裁剪 DFT + 设备复数乘 + 裁剪 iFFT）+ 四层 FNO-NS。公开 NS64 L2 **0.035012**；算子默认路径 worst rel **7.16e-6**，**0.599 / 1.405 / 5.099 ms** @64/128/256；FNO batch-16 **5.26M** grid points/s。
 
 ---
 
@@ -22,7 +22,7 @@ On one **Biren106B** card we implement FNO's core 2D **Spectral Convolution** wi
 | 主报项 | 现行值 |
 |--------|--------|
 | 公开 NS64 相对 L2 | **0.035012** · tag `spec_ref_r2` · **v10** |
-| Spectral 64 / 128 / 256 | **0.764 / 1.827 / 6.504 ms**（`pipe_b_r1` · **v12** · 2026-08-16；上一主表 0.762/1.981/7.324） |
+| Spectral 64 / 128 / 256 | **0.599 / 1.405 / 5.099 ms**（`pinned_src_r1` · **v13** · 2026-08-16；上一主表 0.764/1.827/6.504） |
 | Spectral 正确性 worst rel | 默认裁剪路径 **7.16×10⁻⁶**（阈值 `1e-4`；suFFT 三案 2.17×10⁻⁷） |
 | Checkpoint | `fno_ns/checkpoints/fno_ns_public_demo.pt` |
 | Phase | `submit_gate` done |
@@ -148,9 +148,9 @@ python3 test_perf.py
 
 | 分辨率 | formal idle |
 |--------|-------------|
-| 64×64 | **0.764 ms** |
-| 128×128 | **1.827 ms** |
-| 256×256 | **6.504 ms** |
+| 64×64 | **0.599 ms** |
+| 128×128 | **1.405 ms** |
+| 256×256 | **5.099 ms** |
 
 配置：warmup=`10` · iters=`100` · 同步 wall-clock。
 
@@ -234,7 +234,7 @@ python3 test_perf.py
 # 三档 64/128/256；正式板已冻结，交卷勿无故覆写
 ```
 
-现行主表：**0.764 / 1.827 / 6.504 ms**（`pipe_b_r1` · v12 · 2026-08-16）。上一主表 0.762 / 1.981 / 7.324。
+现行主表：**0.599 / 1.405 / 5.099 ms**（`pinned_src_r1` · v13 · 2026-08-16）。上一主表 0.764 / 1.827 / 6.504。
 
 ### 5.4 FNO 前向与可视化
 
@@ -326,7 +326,7 @@ submission/
 | 项 | 结果 |
 |----|------|
 | SpectralConv rel（formal） | 默认路径 **7.16e−6** ≤ `1e-4` |
-| Spectral 64/128/256 | **0.764 / 1.827 / 6.504 ms** |
+| Spectral 64/128/256 | **0.599 / 1.405 / 5.099 ms** |
 | spectral_mul backward | worst ≈ 6.3e−8 |
 | SpectralConv3d（四角） | worst ≈ 1.19e−7 |
 | FNO 层数 | **4** |

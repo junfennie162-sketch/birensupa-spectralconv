@@ -22,7 +22,7 @@
 | 新会话交接 | `results/run_logs/HANDOFF_NEW_SESSION_YYYY-MM-DD.md`（现行：`HANDOFF_NEW_SESSION_2026-08-14.md`） |
 | 历史计划卡 | `results/run_logs/_history/OPT_WAVE_MULTIAGENT_PLAN_2026-08-03.md`（精度线已停） |
 | Agent 日志 | `AGENT_OFFICIAL.md`（抽查）+ `development_log.md`（全文） |
-| 评测报告 | `/workspace/评测报告_最新指标_*.md`（**全局唯一**；现行 2026-08-16_092531） |
+| 评测报告 | `/workspace/评测报告_最新指标_*.md`（**全局唯一**；现行 2026-08-16_094942） |
 | SCP / 指标快照 | `demo/scp_description.md` · `demo/media/metrics_snapshot.md` |
 
 ## 3. 命名约定

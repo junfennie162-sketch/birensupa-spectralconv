@@ -35,13 +35,13 @@ Formal board (`results/summary.json`):
 
 | 项 | 值 |
 |----|----|
-| SpectralConv 前向 64 / 128 / 256 | **0.764 / 1.827 / 6.504 ms**（`pipe_b_r1` · v12） |
+| SpectralConv 前向 64 / 128 / 256 | **0.599 / 1.405 / 5.099 ms**（`pinned_src_r1` · v13） |
 | 正确性最差相对误差 | 默认裁剪路径 **7.162×10⁻⁶**（门槛 1×10⁻⁴） |
 | FNO 公开 NS64 相对 L2 | **0.035012**（刚接上官方集时是 0.041835） |
 
 This is not a renamed official PyTorch reference, and it is not a pretty L2 on a home-grown vorticity field.
 
-The **default hot path** in this tree is a pruned DFT (only the kept dual-corner modes). Reported CPU-in timings: **0.961 / 2.207 / 7.870 ms**. Previous suFFT idle: 3.797 / 8.037 / 29.295 ms.
+The **default hot path** in this tree is a pruned DFT (only the kept dual-corner modes). Reported CPU-in timings: **0.599 / 1.405 / 5.099 ms**. Previous boards: 0.764 / 1.827 / 6.504 (`pipe_b_r1`) · 0.762 / 1.981 / 7.324 (`fused_keep_r1`). Previous suFFT idle: 3.797 / 8.037 / 29.295 ms.
 
 ---
 

@@ -3,7 +3,7 @@
 > **官方必须项**（赛道评分「Agent 开发」约 15%；缺失或不足 **视为不合格**）。  
 > 本页按选手手册模板撰写，供评委 **直接抽查**。全文轨迹见 [`development_log.md`](development_log.md)（共 **45** 段编号记录）。  
 > 工具：Cursor Agent（SSH · 壁仞竞赛 Docker · SDK `1.11.0.0.rc2`）。  
-> 现行主报：公开 NS64 L2 **0.035012**（`spec_ref_r2` · v10）；Spectral **0.764 / 1.827 / 6.504 ms**（`pipe_b_r1` · v12 · 2026-08-16）。
+> 现行主报：公开 NS64 L2 **0.035012**（`spec_ref_r2` · v10）；Spectral **0.599 / 1.405 / 5.099 ms**（`pinned_src_r1` · v13 · 2026-08-16）。
 
 ## Scene coverage (≥3 types · this page covers all 6)
 
